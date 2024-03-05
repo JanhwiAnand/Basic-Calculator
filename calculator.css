@@ -1,0 +1,62 @@
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+body{
+    min-height:100vh;
+    background:#efeff2;
+    display:flex;
+    align-items:center;
+    justify-content: center;
+}
+.calculator{
+    width:400px;
+    height:500px;
+    box-shadow:4px 4px 30px rgb(0,0,0,0.3);
+    border-radius: 12px;
+    background:#222520;
+    overflow:hidden;
+}
+form>input{
+    width:100%;
+    height:150px;
+    border:none;
+    border-radius:12px;
+    font-size:2rem;
+    padding:1rem;
+    color:#fff;
+    background:#000;
+    text-align:right; 
+    /* since the text started from lrft so in order to place in right we did like this */
+    /* the screen should be only for the display purpose so it should not be cickable */
+    pointer-events: none;
+}
+button{
+    flex:0 0 22%;
+    margin:5px 0;  /*5px from top and botton and 0 from left and right */
+    width:65px;
+    height:52px;
+    font-size:22px;
+    font-weight:600;
+    border-radius:5px;
+    cursor:pointer;
+}
+.buttons{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content: space-between;
+    padding:20px;
+}
+.btn-yellow{
+    background:rgb(247, 214, 0);
+}
+.btn-grey{
+    background:rgb(224,224,224);
+}
+.btn-equal{
+    background-color: green;
+}
+.btn-clear{
+    background:red;
+}
