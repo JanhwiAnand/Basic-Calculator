@@ -1,208 +1,485 @@
-             import { useState } from 'react';
+         // Approval Component: Allows Admins to approve or decline leaves
+import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { applyLeave } from '../redux/actions/leaveActions';
-import { addUser } from '../redux/actions/userActions'; // ✅ Import added
-import {
-  getToken,
-  getLeaveLoading,
-  getLeaveError,
-  getUser
-} from '../redux/selectors';
+import { fetchCurrentLeaves, approveLeave, declineLeave } from '../redux/actions/leaveActions';
+import { getToken, getCurrentLeaves, getLeaveLoading } from '../redux/selectors';
 
-const ApplyLeave = () => {
+const Approval = () => {
+  const [declineReason, setDeclineReason] = useState('');
+  const [selectedLeaveId, setSelectedLeaveId] = useState(null);
+
   const dispatch = useDispatch();
   const token = useSelector(getToken);
-  const user = useSelector(getUser);
+  const currentLeaves = useSelector(getCurrentLeaves);
   const loading = useSelector(getLeaveLoading);
-  const error = useSelector(getLeaveError);
 
-  const isAdmin = user?.role === 'ADMIN';
+  // Fetch pending leaves when the component loads
+  useEffect(() => {
+    dispatch(fetchCurrentLeaves(token));
+  }, [dispatch, token]);
 
-  const [leaveData, setLeaveData] = useState({
-    category: '',
-    startDate: '',
-    endDate: '',
-    reason: '',
-  });
-
-  const [userData, setUserData] = useState({
-    email: '',
-    password: '',
-    role: 'EMPLOYEE',
-  });
-
-  const [addUserError, setAddUserError] = useState(null);
-  const [addUserLoading, setAddUserLoading] = useState(false);
-
-  const handleLeaveChange = (e) => {
-    const { name, value } = e.target;
-    setLeaveData(prev => ({ ...prev, [name]: value }));
+  // Handle leave approval
+  const handleApprove = (leaveId) => {
+    dispatch(approveLeave(leaveId, token));
   };
 
-  const handleUserChange = (e) => {
-    const { name, value } = e.target;
-    setUserData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleApply = async () => {
-    try {
-      const leaveDataWithEmail = {
-        ...leaveData,
-        employeeEmail: user?.email || '',
-      };
-      await dispatch(applyLeave(leaveDataWithEmail, token));
-      alert('Leave applied successfully');
-      setLeaveData({
-        category: '',
-        startDate: '',
-        endDate: '',
-        reason: '',
-      });
-    } catch (error) {
-      console.error('Error applying leave:', error.message);
-      alert(`Failed to apply leave: ${error.message}`);
+  // Handle leave decline with a reason
+  const handleDecline = (leaveId) => {
+    if (!declineReason) {
+      alert('Please provide a reason for declining');
+      return;
     }
-  };
-
-  const handleAddUser = async () => {
-    setAddUserError(null);
-    setAddUserLoading(true);
-    try {
-      await dispatch(addUser(userData, token));
-      alert('User added successfully');
-      setUserData({ email: '', password: '', role: 'EMPLOYEE' });
-    } catch (error) {
-      const message = error.message || 'Failed to add user';
-      console.error('Error adding user:', message);
-      setAddUserError(message);
-    } finally {
-      setAddUserLoading(false);
-    }
+    dispatch(declineLeave(leaveId, declineReason, token));
+    setDeclineReason('');
+    setSelectedLeaveId(null);
   };
 
   return (
     <div>
-      {isAdmin ? (
-        <>
-          <h2 className="text-center mb-4">Add New User</h2>
-          <div className="card p-4">
-            <div className="mb-3">
-              <label className="form-label">Email</label>
-              <input
-                type="email"
-                className="form-control"
-                name="email"
-                value={userData.email}
-                onChange={handleUserChange}
-                required
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Password</label>
-              <input
-                type="password"
-                className="form-control"
-                name="password"
-                value={userData.password}
-                onChange={handleUserChange}
-                required
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Role</label>
-              <select
-                className="form-control"
-                name="role"
-                value={userData.role}
-                onChange={handleUserChange}
-                required
-              >
-                <option value="EMPLOYEE">Employee</option>
-                <option value="ADMIN">Admin</option>
-              </select>
-            </div>
-            <button
-              className="btn btn-primary me-2"
-              onClick={handleAddUser}
-              disabled={addUserLoading}
-            >
-              {addUserLoading ? 'Adding...' : 'Add User'}
-            </button>
-            {addUserError && (
-              <div className="alert alert-danger mt-3" role="alert">
-                Error: {addUserError}
-              </div>
+      <h2 className="text-center mb-4">Leave Approval</h2>
+      <div className="card p-4">
+        <h5>Active Leave Requests</h5>
+        <table className="table table-striped">
+          <thead>
+            <tr>
+              <th>Employee Email</th>
+              <th>Category</th>
+              <th>Start Date</th>
+              <th>End Date</th>
+              <th>Reason</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {currentLeaves.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="text-center">No active leave requests</td>
+              </tr>
+            ) : (
+              currentLeaves.map(leave => (
+                <tr key={leave.id}>
+                  <td>{leave.employeeEmail}</td>
+                  <td>{leave.category}</td>
+                  <td>{leave.startDate}</td>
+                  <td>{leave.endDate}</td>
+                  <td>{leave.reason}</td>
+                  <td>
+                    <button
+                      className="btn btn-success btn-sm me-2"
+                      onClick={() => handleApprove(leave.id)}
+                      disabled={loading}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={() => setSelectedLeaveId(leave.id)}
+                      data-bs-toggle="modal"
+                      data-bs-target="#declineModal"
+                      disabled={loading}
+                    >
+                      Decline
+                    </button>
+                  </td>
+                </tr>
+              ))
             )}
-          </div>
-        </>
-      ) : (
-        <>
-          <h2 className="text-center mb-4">Apply Leave</h2>
-          <div className="card p-4">
-            <div className="mb-3">
-              <label className="form-label">Category</label>
-              <select
-                className="form-control"
-                name="category"
-                value={leaveData.category}
-                onChange={handleLeaveChange}
-                required
-              >
-                <option value="">Select Category</option>
-                <option value="SICK">Sick Leave</option>
-                <option value="CASUAL">Casual Leave</option>
-                <option value="ANNUAL">Annual Leave</option>
-              </select>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Modal for Decline Reason */}
+      <div className="modal fade" id="declineModal" tabIndex="-1" aria-labelledby="declineModalLabel" aria-hidden="true">
+        <div className="modal-dialog">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title" id="declineModalLabel">Decline Leave</h5>
+              <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div className="mb-3">
-              <label className="form-label">Start Date</label>
-              <input
-                type="date"
-                className="form-control"
-                name="startDate"
-                value={leaveData.startDate}
-                onChange={handleLeaveChange}
-                required
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">End Date</label>
-              <input
-                type="date"
-                className="form-control"
-                name="endDate"
-                value={leaveData.endDate}
-                onChange={handleLeaveChange}
-                required
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Reason</label>
-              <textarea
-                className="form-control"
-                name="reason"
-                value={leaveData.reason}
-                onChange={handleLeaveChange}
-                required
-              />
-            </div>
-            <button
-              className="btn btn-primary me-2"
-              onClick={handleApply}
-              disabled={loading}
-            >
-              {loading ? 'Applying...' : 'Apply'}
-            </button>
-            {error && (
-              <div className="alert alert-danger mt-3" role="alert">
-                Error: {error}
+            <div className="modal-body">
+              <div className="mb-3">
+                <label className="form-label">Reason for Decline</label>
+                <textarea
+                  className="form-control"
+                  value={declineReason}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  required
+                />
               </div>
-            )}
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => handleDecline(selectedLeaveId)}
+                data-bs-dismiss="modal"
+              >
+                Decline
+              </button>
+            </div>
           </div>
-        </>
-      )}
+        </div>
+      </div>
     </div>
   );
 };
 
-export default ApplyLeave;
+export default Approval;
+import axios from 'axios';
+
+export const applyLeave = (leaveData, token) => async dispatch => {
+  dispatch({ type: 'APPLY_LEAVE_REQUEST' });
+  try {
+    const response = await axios.post('http://localhost:5000/api/leaves/apply', leaveData, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: 'APPLY_LEAVE_SUCCESS', payload: response.data });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to apply leave';
+    dispatch({ type: 'APPLY_LEAVE_FAILURE', payload: message });
+    throw error;
+  }
+};
+
+export const fetchCurrentLeaves = (token, page = 0, size = 10) => async dispatch => {
+  dispatch({ type: 'FETCH_LEAVES_REQUEST' });
+  try {
+    const response = await axios.get('http://localhost:5000/api/leaves/current', {
+      params: { page, size ,employeeEmail},
+      headers: { Authorization: `Bearer ${token}` },
+
+    });
+    console.log(response);
+    dispatch({ type: 'FETCH_LEAVES_SUCCESS', payload: response.data.content });
+  } catch (error) {
+    console.log(error)
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to fetch leaves';
+    dispatch({ type: 'FETCH_LEAVES_FAILURE', payload: message });
+    throw error;
+  }
+};
+
+export const fetchLeaveHistory = (token, year, page = 0, size = 10) => async dispatch => {
+  dispatch({ type: 'FETCH_HISTORY_REQUEST' });
+  console.log("dispatch", { year, page, size, token });
+  try {
+    const response = await axios.get(`http://localhost:5000/api/leaves/history`, {
+      params: { year, page, size },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    console.log('fetchLeaveHistory response:', response.data); // Debug response
+    dispatch({ type: 'FETCH_HISTORY_SUCCESS', payload: response.data });
+  } catch (error) {
+    const message = error.response?.data?.error || error.message || 'Failed to fetch history';
+    console.error('fetchLeaveHistory error:', message);
+    dispatch({ type: 'FETCH_HISTORY_FAILURE', payload: message });
+    throw error;
+  }
+};
+
+export const cancelLeave = (leaveId, token) => async dispatch => {
+  dispatch({ type: 'CANCEL_LEAVE_REQUEST' });
+  try {
+    await axios.delete(`http://localhost:5000/api/leaves/${leaveId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: 'CANCEL_LEAVE_SUCCESS', payload: leaveId });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to cancel leave';
+    console.error('Failed to cancel leave:', message);
+    dispatch({ type: 'CANCEL_LEAVE_FAILURE', payload: message });
+    throw error;
+  }
+};
+
+export const approveLeave = (leaveId, token) => async dispatch => {
+  dispatch({ type: 'APPROVE_LEAVE_REQUEST' });
+  try {
+    await axios.put(`http://localhost:5000/api/leaves/${leaveId}/approve`, {}, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: 'APPROVE_LEAVE_SUCCESS', payload: { id: leaveId } });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to approve leave';
+    console.error('Failed to approve leave:', message);
+    dispatch({ type: 'APPROVE_LEAVE_FAILURE', payload: message });
+    throw error;
+  }
+};
+
+export const declineLeave = (leaveId, reason, token) => async dispatch => {
+  dispatch({ type: 'DECLINE_LEAVE_REQUEST' });
+  try {
+    await axios.put(`http://localhost:5000/api/leaves/${leaveId}/decline`, { reason }, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: 'DECLINE_LEAVE_SUCCESS', payload: { id: leaveId } });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to decline leave';
+    console.error('Failed to decline leave:', message);
+    dispatch({ type: 'DECLINE_LEAVE_FAILURE', payload: message });
+    throw error;
+  }
+};
+//leaveController in node.js
+const asyncHandler = require('express-async-handler');
+const axios = require('axios');
+const constants = require('../utils/constants');
+const env = require('../config/env');
+const { handleAxiosError } = require('../utils/errorHandler');
+const CustomError = require('../utils/customError');
+
+const applyLeave = asyncHandler(async (req, res) => {
+  const { employeeEmail, startDate, endDate, reason } = req.body;
+  try {
+    const response = await axios.post(`${env.SPRING_BOOT_API}/api/leaves/apply`, {
+      employeeEmail,
+      startDate,
+      endDate,
+      reason,
+    }, {
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(constants.status.CREATED).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const getCurrentLeaves = asyncHandler(async (req, res) => {
+  const {employeeEmail,page,size} = req.query;
+  console.log('Request is comng')
+  console.log(req.query)
+  try{
+    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/current`, {
+      params: {employeeEmail,page, size},
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(constants.status.OK).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const getPendingLeaves = asyncHandler(async (req, res) => {
+  const { page = 0, size = 10 } = req.query;
+  try {
+    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/pending`, {
+      params: { page, size },
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(constants.status.OK).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const approveLeave = asyncHandler(async (req, res) => {
+  const { leaveId } = req.params;
+  try {
+    const response = await axios.put(`${env.SPRING_BOOT_API}/api/leaves/approve/${leaveId}`, {}, {
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(constants.status.OK).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const rejectLeave = asyncHandler(async (req, res) => {
+  const { leaveId } = req.params;
+  const { declineReason } = req.body;
+  try {
+    const response = await axios.put(`${env.SPRING_BOOT_API}/api/leaves/reject/${leaveId}`, {
+      declineReason,
+    }, {
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(constants.status.OK).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const cancelLeave = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    console.log(`Cancel leave request received for leaveId: ${id}`);
+    console.log(`Forwarding DELETE request to Spring Boot: ${env.SPRING_BOOT_API}/api/leaves/${id}`);
+    try {
+        if (!id || isNaN(id) || parseInt(id) <= 0) {
+            throw new CustomError('Leave ID must be a positive integer', constants.status.BAD_REQUEST);
+        }
+        if (!req.headers.authorization) {
+            throw new CustomError('Authorization header missing', constants.status.UNAUTHORIZED);
+        }
+        const response = await axios.delete(`${env.SPRING_BOOT_API}/api/leaves/${id}`, {
+            headers: { Authorization: req.headers.authorization },
+        });
+        console.log(`Spring Boot response: ${response.status}`, response.data);
+        res.status(response.status).json(response.data || { message: 'Leave cancelled successfully' });
+    } catch (error) {
+        console.log('Error while forwarding to Spring Boot:', error.message);
+        handleAxiosError(error, res);
+    }
+});
+
+const getLeaveHistory = asyncHandler(async (req, res) => {
+  const { employeeEmail, year, page = 0, size = 10, sortBy, direction } = req.query;
+  console.log(`Fetching leave history with params: year=${year}, page=${page}, size=${size}`);
+  try {
+    if (!req.headers.authorization) {
+      throw new CustomError('Authorization header missing', constants.status.UNAUTHORIZED);
+    }
+    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/history`, {
+      params: { year, page, size, sortBy, direction }, // Added year to params
+      headers: { Authorization: req.headers.authorization },
+    });
+    console.log(`Spring Boot response: ${response.status}`, response.data);
+    res.status(constants.status.OK).json(response.data);
+  } catch (error) {
+    console.log('Error fetching leave history:', error.message);
+    handleAxiosError(error, res);
+  }
+});
+
+module.exports = {
+  applyLeave,
+  cancelLeave,
+  getCurrentLeaves,
+  getPendingLeaves,
+  approveLeave,
+  rejectLeave,
+  getLeaveHistory
+};
+
+//leavecontroller of spring boot:-
+const asyncHandler = require('express-async-handler');
+const axios = require('axios');
+const constants = require('../utils/constants');
+const env = require('../config/env');
+const { handleAxiosError } = require('../utils/errorHandler');
+const CustomError = require('../utils/customError');
+
+const applyLeave = asyncHandler(async (req, res) => {
+  const { employeeEmail, startDate, endDate, reason } = req.body;
+  try {
+    const response = await axios.post(`${env.SPRING_BOOT_API}/api/leaves/apply`, {
+      employeeEmail,
+      startDate,
+      endDate,
+      reason,
+    }, {
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(constants.status.CREATED).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const getCurrentLeaves = asyncHandler(async (req, res) => {
+  const {employeeEmail,page,size} = req.query;
+  console.log('Request is comng')
+  console.log(req.query)
+  try{
+    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/current`, {
+      params: {employeeEmail,page, size},
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(constants.status.OK).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const getPendingLeaves = asyncHandler(async (req, res) => {
+  const { page = 0, size = 10 } = req.query;
+  try {
+    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/pending`, {
+      params: { page, size },
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(constants.status.OK).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const approveLeave = asyncHandler(async (req, res) => {
+  const { leaveId } = req.params;
+  try {
+    const response = await axios.put(`${env.SPRING_BOOT_API}/api/leaves/approve/${leaveId}`, {}, {
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(constants.status.OK).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const rejectLeave = asyncHandler(async (req, res) => {
+  const { leaveId } = req.params;
+  const { declineReason } = req.body;
+  try {
+    const response = await axios.put(`${env.SPRING_BOOT_API}/api/leaves/reject/${leaveId}`, {
+      declineReason,
+    }, {
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(constants.status.OK).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const cancelLeave = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    console.log(`Cancel leave request received for leaveId: ${id}`);
+    console.log(`Forwarding DELETE request to Spring Boot: ${env.SPRING_BOOT_API}/api/leaves/${id}`);
+    try {
+        if (!id || isNaN(id) || parseInt(id) <= 0) {
+            throw new CustomError('Leave ID must be a positive integer', constants.status.BAD_REQUEST);
+        }
+        if (!req.headers.authorization) {
+            throw new CustomError('Authorization header missing', constants.status.UNAUTHORIZED);
+        }
+        const response = await axios.delete(`${env.SPRING_BOOT_API}/api/leaves/${id}`, {
+            headers: { Authorization: req.headers.authorization },
+        });
+        console.log(`Spring Boot response: ${response.status}`, response.data);
+        res.status(response.status).json(response.data || { message: 'Leave cancelled successfully' });
+    } catch (error) {
+        console.log('Error while forwarding to Spring Boot:', error.message);
+        handleAxiosError(error, res);
+    }
+});
+
+const getLeaveHistory = asyncHandler(async (req, res) => {
+  const { employeeEmail, year, page = 0, size = 10, sortBy, direction } = req.query;
+  console.log(`Fetching leave history with params: year=${year}, page=${page}, size=${size}`);
+  try {
+    if (!req.headers.authorization) {
+      throw new CustomError('Authorization header missing', constants.status.UNAUTHORIZED);
+    }
+    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/history`, {
+      params: { year, page, size, sortBy, direction }, // Added year to params
+      headers: { Authorization: req.headers.authorization },
+    });
+    console.log(`Spring Boot response: ${response.status}`, response.data);
+    res.status(constants.status.OK).json(response.data);
+  } catch (error) {
+    console.log('Error fetching leave history:', error.message);
+    handleAxiosError(error, res);
+  }
+});
+
+module.exports = {
+  applyLeave,
+  cancelLeave,
+  getCurrentLeaves,
+  getPendingLeaves,
+  approveLeave,
+  rejectLeave,
+  getLeaveHistory
+};
