@@ -1,8 +1,53 @@
-         // Approval Component: Allows Admins to approve or decline leaves
+// leaveActions.js
+import axios from 'axios';
+
+export const fetchPendingLeaves = (token, page = 0, size = 10) => async dispatch => {
+  dispatch({ type: 'FETCH_PENDING_LEAVES_REQUEST' });
+  try {
+    const response = await axios.get('http://localhost:5000/api/leaves/pending', {
+      params: { page, size },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: 'FETCH_PENDING_LEAVES_SUCCESS', payload: response.data.content });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to fetch pending leaves';
+    dispatch({ type: 'FETCH_PENDING_LEAVES_FAILURE', payload: message });
+    throw error;
+  }
+};
+
+// leaveReducer.js
+const initialState = {
+  pendingLeaves: [],
+  loading: false,
+  error: null,
+  // ... other state properties
+};
+
+const leaveReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case 'FETCH_PENDING_LEAVES_REQUEST':
+      return { ...state, loading: true };
+    case 'FETCH_PENDING_LEAVES_SUCCESS':
+      return { ...state, loading: false, pendingLeaves: action.payload };
+    case 'FETCH_PENDING_LEAVES_FAILURE':
+      return { ...state, loading: false, error: action.payload };
+    // ... other cases
+    default:
+      return state;
+  }
+};
+
+export default leaveReducer;
+
+// selectors.js
+export const getPendingLeaves = state => state.leave.pendingLeaves;
+
+// Approval.js
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchCurrentLeaves, approveLeave, declineLeave } from '../redux/actions/leaveActions';
-import { getToken, getCurrentLeaves, getLeaveLoading } from '../redux/selectors';
+import { fetchPendingLeaves, approveLeave, declineLeave } from '../redux/actions/leaveActions';
+import { getToken, getPendingLeaves, getLeaveLoading } from '../redux/selectors';
 
 const Approval = () => {
   const [declineReason, setDeclineReason] = useState('');
@@ -10,20 +55,17 @@ const Approval = () => {
 
   const dispatch = useDispatch();
   const token = useSelector(getToken);
-  const currentLeaves = useSelector(getCurrentLeaves);
+  const pendingLeaves = useSelector(getPendingLeaves);
   const loading = useSelector(getLeaveLoading);
 
-  // Fetch pending leaves when the component loads
   useEffect(() => {
-    dispatch(fetchCurrentLeaves(token));
+    dispatch(fetchPendingLeaves(token));
   }, [dispatch, token]);
 
-  // Handle leave approval
   const handleApprove = (leaveId) => {
     dispatch(approveLeave(leaveId, token));
   };
 
-  // Handle leave decline with a reason
   const handleDecline = (leaveId) => {
     if (!declineReason) {
       alert('Please provide a reason for declining');
@@ -38,7 +80,7 @@ const Approval = () => {
     <div>
       <h2 className="text-center mb-4">Leave Approval</h2>
       <div className="card p-4">
-        <h5>Active Leave Requests</h5>
+        <h5>Pending Leave Requests</h5>
         <table className="table table-striped">
           <thead>
             <tr>
@@ -51,12 +93,12 @@ const Approval = () => {
             </tr>
           </thead>
           <tbody>
-            {currentLeaves.length === 0 ? (
+            {pendingLeaves.length === 0 ? (
               <tr>
-                <td colSpan="6" className="text-center">No active leave requests</td>
+                <td colSpan="6" className="text-center">No pending leave requests</td>
               </tr>
             ) : (
-              currentLeaves.map(leave => (
+              pendingLeaves.map(leave => (
                 <tr key={leave.id}>
                   <td>{leave.employeeEmail}</td>
                   <td>{leave.category}</td>
@@ -126,334 +168,15 @@ const Approval = () => {
 };
 
 export default Approval;
-import axios from 'axios';
-
-export const applyLeave = (leaveData, token) => async dispatch => {
-  dispatch({ type: 'APPLY_LEAVE_REQUEST' });
-  try {
-    const response = await axios.post('http://localhost:5000/api/leaves/apply', leaveData, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    dispatch({ type: 'APPLY_LEAVE_SUCCESS', payload: response.data });
-  } catch (error) {
-    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to apply leave';
-    dispatch({ type: 'APPLY_LEAVE_FAILURE', payload: message });
-    throw error;
-  }
-};
-
-export const fetchCurrentLeaves = (token, page = 0, size = 10) => async dispatch => {
-  dispatch({ type: 'FETCH_LEAVES_REQUEST' });
-  try {
-    const response = await axios.get('http://localhost:5000/api/leaves/current', {
-      params: { page, size ,employeeEmail},
-      headers: { Authorization: `Bearer ${token}` },
-
-    });
-    console.log(response);
-    dispatch({ type: 'FETCH_LEAVES_SUCCESS', payload: response.data.content });
-  } catch (error) {
-    console.log(error)
-    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to fetch leaves';
-    dispatch({ type: 'FETCH_LEAVES_FAILURE', payload: message });
-    throw error;
-  }
-};
-
-export const fetchLeaveHistory = (token, year, page = 0, size = 10) => async dispatch => {
-  dispatch({ type: 'FETCH_HISTORY_REQUEST' });
-  console.log("dispatch", { year, page, size, token });
-  try {
-    const response = await axios.get(`http://localhost:5000/api/leaves/history`, {
-      params: { year, page, size },
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    console.log('fetchLeaveHistory response:', response.data); // Debug response
-    dispatch({ type: 'FETCH_HISTORY_SUCCESS', payload: response.data });
-  } catch (error) {
-    const message = error.response?.data?.error || error.message || 'Failed to fetch history';
-    console.error('fetchLeaveHistory error:', message);
-    dispatch({ type: 'FETCH_HISTORY_FAILURE', payload: message });
-    throw error;
-  }
-};
-
-export const cancelLeave = (leaveId, token) => async dispatch => {
-  dispatch({ type: 'CANCEL_LEAVE_REQUEST' });
-  try {
-    await axios.delete(`http://localhost:5000/api/leaves/${leaveId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    dispatch({ type: 'CANCEL_LEAVE_SUCCESS', payload: leaveId });
-  } catch (error) {
-    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to cancel leave';
-    console.error('Failed to cancel leave:', message);
-    dispatch({ type: 'CANCEL_LEAVE_FAILURE', payload: message });
-    throw error;
-  }
-};
-
-export const approveLeave = (leaveId, token) => async dispatch => {
-  dispatch({ type: 'APPROVE_LEAVE_REQUEST' });
-  try {
-    await axios.put(`http://localhost:5000/api/leaves/${leaveId}/approve`, {}, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    dispatch({ type: 'APPROVE_LEAVE_SUCCESS', payload: { id: leaveId } });
-  } catch (error) {
-    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to approve leave';
-    console.error('Failed to approve leave:', message);
-    dispatch({ type: 'APPROVE_LEAVE_FAILURE', payload: message });
-    throw error;
-  }
-};
-
-export const declineLeave = (leaveId, reason, token) => async dispatch => {
-  dispatch({ type: 'DECLINE_LEAVE_REQUEST' });
-  try {
-    await axios.put(`http://localhost:5000/api/leaves/${leaveId}/decline`, { reason }, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    dispatch({ type: 'DECLINE_LEAVE_SUCCESS', payload: { id: leaveId } });
-  } catch (error) {
-    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to decline leave';
-    console.error('Failed to decline leave:', message);
-    dispatch({ type: 'DECLINE_LEAVE_FAILURE', payload: message });
-    throw error;
-  }
-};
-//leaveController in node.js
-const asyncHandler = require('express-async-handler');
-const axios = require('axios');
-const constants = require('../utils/constants');
-const env = require('../config/env');
-const { handleAxiosError } = require('../utils/errorHandler');
-const CustomError = require('../utils/customError');
-
-const applyLeave = asyncHandler(async (req, res) => {
-  const { employeeEmail, startDate, endDate, reason } = req.body;
-  try {
-    const response = await axios.post(`${env.SPRING_BOOT_API}/api/leaves/apply`, {
-      employeeEmail,
-      startDate,
-      endDate,
-      reason,
-    }, {
-      headers: { Authorization: req.headers.authorization },
-    });
-    res.status(constants.status.CREATED).json(response.data);
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
-});
-
-const getCurrentLeaves = asyncHandler(async (req, res) => {
-  const {employeeEmail,page,size} = req.query;
-  console.log('Request is comng')
-  console.log(req.query)
-  try{
-    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/current`, {
-      params: {employeeEmail,page, size},
-      headers: { Authorization: req.headers.authorization },
-    });
-    res.status(constants.status.OK).json(response.data);
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
-});
-
-const getPendingLeaves = asyncHandler(async (req, res) => {
-  const { page = 0, size = 10 } = req.query;
-  try {
-    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/pending`, {
-      params: { page, size },
-      headers: { Authorization: req.headers.authorization },
-    });
-    res.status(constants.status.OK).json(response.data);
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
-});
-
-const approveLeave = asyncHandler(async (req, res) => {
-  const { leaveId } = req.params;
-  try {
-    const response = await axios.put(`${env.SPRING_BOOT_API}/api/leaves/approve/${leaveId}`, {}, {
-      headers: { Authorization: req.headers.authorization },
-    });
-    res.status(constants.status.OK).json(response.data);
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
-});
-
-const rejectLeave = asyncHandler(async (req, res) => {
-  const { leaveId } = req.params;
-  const { declineReason } = req.body;
-  try {
-    const response = await axios.put(`${env.SPRING_BOOT_API}/api/leaves/reject/${leaveId}`, {
-      declineReason,
-    }, {
-      headers: { Authorization: req.headers.authorization },
-    });
-    res.status(constants.status.OK).json(response.data);
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
-});
-
-const cancelLeave = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    console.log(`Cancel leave request received for leaveId: ${id}`);
-    console.log(`Forwarding DELETE request to Spring Boot: ${env.SPRING_BOOT_API}/api/leaves/${id}`);
-    try {
-        if (!id || isNaN(id) || parseInt(id) <= 0) {
-            throw new CustomError('Leave ID must be a positive integer', constants.status.BAD_REQUEST);
-        }
-        if (!req.headers.authorization) {
-            throw new CustomError('Authorization header missing', constants.status.UNAUTHORIZED);
-        }
-        const response = await axios.delete(`${env.SPRING_BOOT_API}/api/leaves/${id}`, {
-            headers: { Authorization: req.headers.authorization },
-        });
-        console.log(`Spring Boot response: ${response.status}`, response.data);
-        res.status(response.status).json(response.data || { message: 'Leave cancelled successfully' });
-    } catch (error) {
-        console.log('Error while forwarding to Spring Boot:', error.message);
-        handleAxiosError(error, res);
-    }
-});
-
-const getLeaveHistory = asyncHandler(async (req, res) => {
-  const { employeeEmail, year, page = 0, size = 10, sortBy, direction } = req.query;
-  console.log(`Fetching leave history with params: year=${year}, page=${page}, size=${size}`);
-  try {
-    if (!req.headers.authorization) {
-      throw new CustomError('Authorization header missing', constants.status.UNAUTHORIZED);
-    }
-    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/history`, {
-      params: { year, page, size, sortBy, direction }, // Added year to params
-      headers: { Authorization: req.headers.authorization },
-    });
-    console.log(`Spring Boot response: ${response.status}`, response.data);
-    res.status(constants.status.OK).json(response.data);
-  } catch (error) {
-    console.log('Error fetching leave history:', error.message);
-    handleAxiosError(error, res);
-  }
-});
-
-module.exports = {
-  applyLeave,
-  cancelLeave,
-  getCurrentLeaves,
-  getPendingLeaves,
-  approveLeave,
-  rejectLeave,
-  getLeaveHistory
-};
-
-//leavecontroller of spring boot:-
-package com.example.ems.controller;
-
-import com.example.ems.dto.LeaveRequestDto;
-import com.example.ems.entity.LeaveRequest;
-import com.example.ems.enums.LeaveStatus;
-import com.example.ems.exception.LeaveValidationException;
-import com.example.ems.service.LeaveService;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.stream.Collectors;
-
-@RestController
-@RequestMapping("/api/leaves")
-public class LeaveController {
-    private static final Logger logger = LoggerFactory.getLogger(LeaveController.class);
-    private final LeaveService leaveService;
-
-    public LeaveController(LeaveService leaveService) {
-        this.leaveService = leaveService;
-    }
-
-    @PostMapping("/apply")
-    public LeaveRequest applyLeave(@Valid @RequestBody LeaveRequestDto leaveRequestDto, HttpServletRequest request) {
-        logger.info("Received leave request with employeeEmail: {}", leaveRequestDto.employeeEmail());
-        return leaveService.applyLeave(leaveRequestDto, request);
-    }
-
-    @GetMapping("/history")
-    public Page<LeaveRequest> getLeaveHistory(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) Integer year, // Added year parameter
-            HttpServletRequest request) {
-        String email = (String) request.getAttribute("email");
-        Pageable pageable = PageRequest.of(page, size);
-        return leaveService.getLeaveHistory(email, pageable, year);
-    }
-
-    @GetMapping("/all")
-    public Page<LeaveRequest> getAllLeaveHistory(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return leaveService.getAllLeaveHistory(pageable);
-    }
-
-    @GetMapping("/current")
-    public Page<LeaveRequest> getCurrentLeaves(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            HttpServletRequest request) {
-        String email = (String) request.getAttribute("email");
-        if (email == null) {
-            logger.error("Token email is null in getCurrentLeaves");
-            throw new LeaveValidationException("Authentication token is invalid or missing");
-        }
-        logger.info("Fetching current leaves for user: {}", email);
-        Pageable pageable = PageRequest.of(page, size);
-        Page<LeaveRequest> history = leaveService.getLeaveHistory(email, pageable, null);
-        List<LeaveRequest> currentLeaves = history.getContent().stream()
-                .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
-                .collect(Collectors.toList());
-        return new PageImpl<>(currentLeaves, pageable, history.getTotalElements());
-    }
-
-    @GetMapping("/pending")
-    public Page<LeaveRequest> getPendingLeaves(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        logger.info("Fetching pending leaves, page: {}, size: {}", page, size);
-        Pageable pageable = PageRequest.of(page, size);
-        Page<LeaveRequest> allLeaves = leaveService.getAllLeaveHistory(pageable);
-        List<LeaveRequest> pendingLeaves = allLeaves.getContent().stream()
-                .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
-                .collect(Collectors.toList());
-        return new PageImpl<>(pendingLeaves, pageable, allLeaves.getTotalElements());
-    }
-
-    @PutMapping("/approve/{leaveId}")
-    public LeaveRequest approveLeave(@PathVariable Long leaveId, HttpServletRequest request) {
-        return leaveService.approveLeave(leaveId, request);
-    }
-
-    @PutMapping("/reject/{leaveId}")
-    public LeaveRequest rejectLeave(@PathVariable Long leaveId, HttpServletRequest request) {
-        return leaveService.rejectLeave(leaveId, request);
-    }
-
-    @DeleteMapping("/{leaveId}")
-    public void cancelLeave(@PathVariable Long leaveId, HttpServletRequest request) {
-        logger.info("Cancelling leave request with ID: {}", leaveId);
-        leaveService.cancelLeave(leaveId, request);
-    }
+@GetMapping("/pending")
+public Page<LeaveRequest> getPendingLeaves(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size) {
+    logger.info("Fetching pending leaves, page: {}, size: {}", page, size);
+    Pageable pageable = PageRequest.of(page, size);
+    Page<LeaveRequest> allLeaves = leaveService.getAllLeaveHistory(pageable);
+    List<LeaveRequest> pendingLeaves = allLeaves.getContent().stream()
+            .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
+            .collect(Collectors.toList());
+    return new PageImpl<>(pendingLeaves, pageable, allLeaves.getTotalElements());
 }
