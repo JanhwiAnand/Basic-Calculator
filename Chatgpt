@@ -1,2 +1,224 @@
+import { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { applyLeave } from '../redux/actions/leaveActions';
+import { getToken, getLeaveLoading, getLeaveError, getUser } from '../redux/selectors';
+import axios from 'axios';
 
-hjgjyh
+const ApplyLeave = () => {
+  const dispatch = useDispatch();
+  const token = useSelector(getToken);
+  const user = useSelector(getUser);
+  const loading = useSelector(getLeaveLoading);
+  const error = useSelector(getLeaveError);
+
+  const isAdmin = user?.role === 'ADMIN';
+
+  // State for Apply Leave form (for Employees)
+  const [leaveData, setLeaveData] = useState({
+    category: '',
+    startDate: '',
+    endDate: '',
+    reason: '',
+  });
+
+  // State for Add New User form (for Admins)
+  const [userData, setUserData] = useState({
+    email: '',
+    password: '',
+    role: 'EMPLOYEE', // Default role
+  });
+  const [addUserError, setAddUserError] = useState(null);
+  const [addUserLoading, setAddUserLoading] = useState(false);
+
+  const handleLeaveChange = (e) => {
+    const { name, value } = e.target;
+    setLeaveData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleUserChange = (e) => {
+    const { name, value } = e.target;
+    setUserData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleApply = async () => {
+    try {
+      const leaveDataWithEmail = {
+        ...leaveData,
+        employeeEmail: user?.email || '',
+      };
+      console.log('Applying leave with data:', leaveDataWithEmail);
+      await dispatch(applyLeave(leaveDataWithEmail, token));
+      alert('Leave applied successfully');
+      setLeaveData({
+        category: '',
+        startDate: '',
+        endDate: '',
+        reason: '',
+      });
+    } catch (error) {
+      console.error('Error applying leave:', error.message);
+      alert(`Failed to apply leave: ${error.message}`);
+    }
+  };
+
+  const handleAddUser = async () => {
+    setAddUserError(null);
+    setAddUserLoading(true);
+    try {
+      console.log('Adding new user with data:', userData);
+      const response = await axios.post('http://localhost:5000/api/users', userData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert('User added successfully');
+      setUserData({ email: '', password: '', role: 'EMPLOYEE' });
+    } catch (error) {
+      const message = error.response?.data?.error || error.message || 'Failed to add user';
+      console.error('Error adding user:', message);
+      setAddUserError(message);
+    } finally {
+      setAddUserLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      {isAdmin ? (
+        // Add New User Form for Admins
+        <>
+          <h2 className="text-center mb-4">Add New User</h2>
+          <div className="card p-4">
+            <div className="mb-3">
+              <label className="form-label">Email</label>
+              <input
+                type="email"
+                className="form-control"
+                name="email"
+                value={userData.email}
+                onChange={handleUserChange}
+                required
+              />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Password</label>
+              <input
+                type="password"
+                className="form-control"
+                name="password"
+                value={userData.password}
+                onChange={handleUserChange}
+                required
+              />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Role</label>
+              <select
+                className="form-control"
+                name="role"
+                value={userData.role}
+                onChange={handleUserChange}
+                required
+              >
+                <option value="EMPLOYEE">Employee</option>
+                <option value="ADMIN">Admin</option>
+              </select>
+            </div>
+            <button
+              className="btn btn-primary me-2"
+              onClick={handleAddUser}
+              disabled={addUserLoading}
+            >
+              {addUserLoading ? 'Adding...' : 'Add User'}
+            </button>
+            {addUserError && (
+              <div className="alert alert-danger mt-3" role="alert">
+                Error: {addUserError}
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        // Apply Leave Form for Employees
+        <>
+          <h2 className="text-center mb-4">Apply Leave</h2>
+          <div className="card p-4">
+            <div className="mb-3">
+              <label className="form-label">Category</label>
+              <select
+                className="form-control"
+                name="category"
+                value={leaveData.category}
+                onChange={handleLeaveChange}
+                required
+              >
+                <option value="">Select Category</option>
+                <option value="SICK">Sick Leave</option>
+                <option value="CASUAL">Casual Leave</option>
+                <option value="ANNUAL">Annual Leave</option>
+              </select>
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Start Date</label>
+              <input
+                type="date"
+                className="form-control"
+                name="startDate"
+                value={leaveData.startDate}
+                onChange={handleLeaveChange}
+                required
+              />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">End Date</label>
+              <input
+                type="date"
+                className="form-control"
+                name="endDate"
+                value={leaveData.endDate}
+                onChange={handleLeaveChange}
+                required
+              />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Reason</label>
+              <textarea
+                className="form-control"
+                name="reason"
+                value={leaveData.reason}
+                onChange={handleLeaveChange}
+                required
+              />
+            </div>
+            <button
+              className="btn btn-primary me-2"
+              onClick={handleApply}
+              disabled={loading}
+            >
+              {loading ? 'Applying...' : 'Apply'}
+            </button>
+            {error && (
+              <div className="alert alert-danger mt-3" role="alert">
+                Error: {error}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default ApplyLeave;
+// User Actions: Handles user-related operations (e.g., add user)
+import axios from 'axios';
+
+export const addUser = (userData, token) => async dispatch => {
+  dispatch({ type: 'ADD_USER_REQUEST' });
+  try {
+    const response = await axios.post('http://localhost:5000/api/users', userData, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: 'ADD_USER_SUCCESS', payload: response.data });
+  } catch (error) {
+    dispatch({ type: 'ADD_USER_FAILURE', payload: error.response?.data?.errors[0] || 'Failed to add user' });
+  }
+};
