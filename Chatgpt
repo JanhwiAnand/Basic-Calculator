@@ -354,132 +354,106 @@ module.exports = {
 };
 
 //leavecontroller of spring boot:-
-const asyncHandler = require('express-async-handler');
-const axios = require('axios');
-const constants = require('../utils/constants');
-const env = require('../config/env');
-const { handleAxiosError } = require('../utils/errorHandler');
-const CustomError = require('../utils/customError');
+package com.example.ems.controller;
 
-const applyLeave = asyncHandler(async (req, res) => {
-  const { employeeEmail, startDate, endDate, reason } = req.body;
-  try {
-    const response = await axios.post(`${env.SPRING_BOOT_API}/api/leaves/apply`, {
-      employeeEmail,
-      startDate,
-      endDate,
-      reason,
-    }, {
-      headers: { Authorization: req.headers.authorization },
-    });
-    res.status(constants.status.CREATED).json(response.data);
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
-});
+import com.example.ems.dto.LeaveRequestDto;
+import com.example.ems.entity.LeaveRequest;
+import com.example.ems.enums.LeaveStatus;
+import com.example.ems.exception.LeaveValidationException;
+import com.example.ems.service.LeaveService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.web.bind.annotation.*;
 
-const getCurrentLeaves = asyncHandler(async (req, res) => {
-  const {employeeEmail,page,size} = req.query;
-  console.log('Request is comng')
-  console.log(req.query)
-  try{
-    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/current`, {
-      params: {employeeEmail,page, size},
-      headers: { Authorization: req.headers.authorization },
-    });
-    res.status(constants.status.OK).json(response.data);
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
-});
+import java.util.List;
+import java.util.stream.Collectors;
 
-const getPendingLeaves = asyncHandler(async (req, res) => {
-  const { page = 0, size = 10 } = req.query;
-  try {
-    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/pending`, {
-      params: { page, size },
-      headers: { Authorization: req.headers.authorization },
-    });
-    res.status(constants.status.OK).json(response.data);
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
-});
+@RestController
+@RequestMapping("/api/leaves")
+public class LeaveController {
+    private static final Logger logger = LoggerFactory.getLogger(LeaveController.class);
+    private final LeaveService leaveService;
 
-const approveLeave = asyncHandler(async (req, res) => {
-  const { leaveId } = req.params;
-  try {
-    const response = await axios.put(`${env.SPRING_BOOT_API}/api/leaves/approve/${leaveId}`, {}, {
-      headers: { Authorization: req.headers.authorization },
-    });
-    res.status(constants.status.OK).json(response.data);
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
-});
-
-const rejectLeave = asyncHandler(async (req, res) => {
-  const { leaveId } = req.params;
-  const { declineReason } = req.body;
-  try {
-    const response = await axios.put(`${env.SPRING_BOOT_API}/api/leaves/reject/${leaveId}`, {
-      declineReason,
-    }, {
-      headers: { Authorization: req.headers.authorization },
-    });
-    res.status(constants.status.OK).json(response.data);
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
-});
-
-const cancelLeave = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    console.log(`Cancel leave request received for leaveId: ${id}`);
-    console.log(`Forwarding DELETE request to Spring Boot: ${env.SPRING_BOOT_API}/api/leaves/${id}`);
-    try {
-        if (!id || isNaN(id) || parseInt(id) <= 0) {
-            throw new CustomError('Leave ID must be a positive integer', constants.status.BAD_REQUEST);
-        }
-        if (!req.headers.authorization) {
-            throw new CustomError('Authorization header missing', constants.status.UNAUTHORIZED);
-        }
-        const response = await axios.delete(`${env.SPRING_BOOT_API}/api/leaves/${id}`, {
-            headers: { Authorization: req.headers.authorization },
-        });
-        console.log(`Spring Boot response: ${response.status}`, response.data);
-        res.status(response.status).json(response.data || { message: 'Leave cancelled successfully' });
-    } catch (error) {
-        console.log('Error while forwarding to Spring Boot:', error.message);
-        handleAxiosError(error, res);
+    public LeaveController(LeaveService leaveService) {
+        this.leaveService = leaveService;
     }
-});
 
-const getLeaveHistory = asyncHandler(async (req, res) => {
-  const { employeeEmail, year, page = 0, size = 10, sortBy, direction } = req.query;
-  console.log(`Fetching leave history with params: year=${year}, page=${page}, size=${size}`);
-  try {
-    if (!req.headers.authorization) {
-      throw new CustomError('Authorization header missing', constants.status.UNAUTHORIZED);
+    @PostMapping("/apply")
+    public LeaveRequest applyLeave(@Valid @RequestBody LeaveRequestDto leaveRequestDto, HttpServletRequest request) {
+        logger.info("Received leave request with employeeEmail: {}", leaveRequestDto.employeeEmail());
+        return leaveService.applyLeave(leaveRequestDto, request);
     }
-    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/history`, {
-      params: { year, page, size, sortBy, direction }, // Added year to params
-      headers: { Authorization: req.headers.authorization },
-    });
-    console.log(`Spring Boot response: ${response.status}`, response.data);
-    res.status(constants.status.OK).json(response.data);
-  } catch (error) {
-    console.log('Error fetching leave history:', error.message);
-    handleAxiosError(error, res);
-  }
-});
 
-module.exports = {
-  applyLeave,
-  cancelLeave,
-  getCurrentLeaves,
-  getPendingLeaves,
-  approveLeave,
-  rejectLeave,
-  getLeaveHistory
-};
+    @GetMapping("/history")
+    public Page<LeaveRequest> getLeaveHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Integer year, // Added year parameter
+            HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        Pageable pageable = PageRequest.of(page, size);
+        return leaveService.getLeaveHistory(email, pageable, year);
+    }
+
+    @GetMapping("/all")
+    public Page<LeaveRequest> getAllLeaveHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return leaveService.getAllLeaveHistory(pageable);
+    }
+
+    @GetMapping("/current")
+    public Page<LeaveRequest> getCurrentLeaves(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        if (email == null) {
+            logger.error("Token email is null in getCurrentLeaves");
+            throw new LeaveValidationException("Authentication token is invalid or missing");
+        }
+        logger.info("Fetching current leaves for user: {}", email);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<LeaveRequest> history = leaveService.getLeaveHistory(email, pageable, null);
+        List<LeaveRequest> currentLeaves = history.getContent().stream()
+                .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
+                .collect(Collectors.toList());
+        return new PageImpl<>(currentLeaves, pageable, history.getTotalElements());
+    }
+
+    @GetMapping("/pending")
+    public Page<LeaveRequest> getPendingLeaves(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        logger.info("Fetching pending leaves, page: {}, size: {}", page, size);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<LeaveRequest> allLeaves = leaveService.getAllLeaveHistory(pageable);
+        List<LeaveRequest> pendingLeaves = allLeaves.getContent().stream()
+                .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
+                .collect(Collectors.toList());
+        return new PageImpl<>(pendingLeaves, pageable, allLeaves.getTotalElements());
+    }
+
+    @PutMapping("/approve/{leaveId}")
+    public LeaveRequest approveLeave(@PathVariable Long leaveId, HttpServletRequest request) {
+        return leaveService.approveLeave(leaveId, request);
+    }
+
+    @PutMapping("/reject/{leaveId}")
+    public LeaveRequest rejectLeave(@PathVariable Long leaveId, HttpServletRequest request) {
+        return leaveService.rejectLeave(leaveId, request);
+    }
+
+    @DeleteMapping("/{leaveId}")
+    public void cancelLeave(@PathVariable Long leaveId, HttpServletRequest request) {
+        logger.info("Cancelling leave request with ID: {}", leaveId);
+        leaveService.cancelLeave(leaveId, request);
+    }
+}
