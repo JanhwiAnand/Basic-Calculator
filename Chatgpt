@@ -1,36 +1,1900 @@
+//React project(one part given to understand the flow:-
+//Also explain about mounting, unmounting,will unmount,useEffect etc
+//explain about each and everything what and why used
+// Entry Point: Renders the React app and sets up Redux
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { Provider } from 'react-redux';
+import store from './redux/store';
+import App from './App';
 
-export const declineLeave = (leaveId, reason, token) => async dispatch => {
-  dispatch({ type: 'DECLINE_LEAVE_REQUEST' });
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <Provider store={store}>
+    <App />
+  </Provider>
+);
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import Login from './components/Login';
+import Navbar from './components/Navbar';
+import ApplyLeave from './components/ApplyLeave';
+import Approval from './components/Approval';
+import History from './components/History';
+import Profile from './components/Profile';
+import ErrorBoundary from './components/ErrorBoundary';
+import { getToken, getUser } from './redux/selectors';
+import './styles.css';
+
+function App() {
+  const token = useSelector(getToken); // Check if user is logged in
+  const user = useSelector(getUser);   // Get user details (e.g., role)
+
+  const isAdmin = user?.role === 'ADMIN';
+
+  return (
+    <Router>
+      {/* Show Navbar only if user is logged in */}
+      {token && <Navbar />}
+      <div className="container mt-3">
+        <Routes>
+          {/* Login Route: Redirect to apply-leave if already logged in */}
+          <Route
+            path="/login"
+            element={
+              token ? (
+                <Navigate to="/apply-leave" />
+              ) : (
+                <ErrorBoundary>
+                  <Login />
+                </ErrorBoundary>
+              )
+            }
+          />
+          {/* Apply Leave Route: Accessible to all logged-in users, but UI will differ based on role */}
+          <Route
+            path="/apply-leave"
+            element={
+              token ? (
+                <ErrorBoundary>
+                  <ApplyLeave />
+                </ErrorBoundary>
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          {/* Approval Route: Accessible only to Admins */}
+          <Route
+            path="/approval"
+            element={
+              token && isAdmin ? (
+                <ErrorBoundary>
+                  <Approval />
+                </ErrorBoundary>
+              ) : (
+                <Navigate to={token ? "/apply-leave" : "/login"} />
+              )
+            }
+          />
+          {/* History Route: Accessible to all logged-in users */}
+          <Route
+            path="/history"
+            element={
+              token ? (
+                <ErrorBoundary>
+                  <History />
+                </ErrorBoundary>
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          {/* Profile Route: Accessible to all logged-in users */}
+          <Route
+            path="/profile"
+            element={
+              token ? (
+                <ErrorBoundary>
+                  <Profile />
+                </ErrorBoundary>
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          {/* Default Route: Redirect based on login status */}
+          <Route path="/" element={<Navigate to={token ? "/apply-leave" : "/login"} />} />
+        </Routes>
+      </div>
+    </Router>
+  );
+}
+
+export default App;
+// Redux Store: Sets up the global state store
+import { createStore, applyMiddleware } from 'redux';
+import {thunk} from 'redux-thunk';
+import rootReducer from './reducers/rootReducer';
+
+const store = createStore(rootReducer, applyMiddleware(thunk));
+
+export default store;
+export const getToken = state => state.auth.token;
+export const getUser = state => state.auth.user;
+export const getAuthError = state => state.auth.error;
+export const getAuthLoading = state => state.auth.loading;
+export const getCurrentLeaves = state => state.leaves.currentLeaves;
+export const getAppliedLeaves = state => state.leaves.appliedLeaves;
+export const getLeaveHistory = state => state.leaves.leaveHistory || { content: [] }; // Added fallback
+export const getLeaveBalances = state => state.leaves.leaveBalances;
+export const getLeaveError = state => state.leaves.error;
+export const getLeaveLoading = state => state.leaves.loading;
+export const getUserError = state => state.user.error;
+export const getUserLoading = state => state.user.loading;
+export const getPendingLeaves = state => state.leaves.pendingLeaves;
+// User Actions: Handles user-related operations (e.g., add user)
+import axios from 'axios';
+
+export const addUser = (userData, token) => async dispatch => {
+  dispatch({ type: 'ADD_USER_REQUEST' });
   try {
-    await axios.put(`http://localhost:5000/api/leaves/reject/${leaveId}`, { reason }, {
+    const response = await axios.post('http://localhost:5000/api/users', userData, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    dispatch({ type: 'DECLINE_LEAVE_SUCCESS', payload: { id: leaveId } });
+    dispatch({ type: 'ADD_USER_SUCCESS', payload: response.data });
   } catch (error) {
-    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to decline leave';
+    dispatch({ type: 'ADD_USER_FAILURE', payload: error.response?.data?.errors[0] || 'Failed to add user' });
+  }
+};
+import axios from 'axios';
+
+export const applyLeave = (leaveData, token) => async dispatch => {
+  dispatch({ type: 'APPLY_LEAVE_REQUEST' });
+  try {
+    const response = await axios.post('http://localhost:5000/api/leaves/apply', leaveData, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: 'APPLY_LEAVE_SUCCESS', payload: response.data });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to apply leave';
+    dispatch({ type: 'APPLY_LEAVE_FAILURE', payload: message });
+    throw error;
+  }
+};
+
+export const fetchPendingLeaves = (token, page = 0, size = 10) => async (dispatch) => {
+  dispatch({ type: 'FETCH_PENDING_LEAVES_REQUEST' });
+  try {
+    const response = await axios.get('http://localhost:5000/api/leaves/pending', {
+      params: { page, size },
+      headers: {Authorization:`Bearer ${token}`},
+    });
+    dispatch({ type: 'FETCH_PENDING_LEAVES_SUCCESS', payload: response.data.content });
+    console.log(response.data);
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to fetch pending leaves';
+    dispatch({ type: 'FETCH_PENDING_LEAVES_FAILURE', payload: message });
+    throw error;
+  }
+};
+
+export const fetchCurrentLeaves = (token, page = 0, size = 10) => async dispatch => {
+  dispatch({ type: 'FETCH_LEAVES_REQUEST' });
+  try {
+    const response = await axios.get('http://localhost:5000/api/leaves/current', {
+      params: { page, size },
+      headers: { Authorization: `Bearer ${token}` },
+
+    });
+    console.log(response);
+    dispatch({ type: 'FETCH_LEAVES_SUCCESS', payload: response.data.content });
+  } catch (error) {
+    console.log(error)
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to fetch leaves';
+    dispatch({ type: 'FETCH_LEAVES_FAILURE', payload: message });
+    throw error;
+  }
+};
+
+export const fetchLeaveHistory = (token, year, page = 0, size = 10) => async dispatch => {
+  dispatch({ type: 'FETCH_HISTORY_REQUEST' });
+  console.log("dispatch", { year, page, size, token });
+  try {
+    const response = await axios.get(`http://localhost:5000/api/leaves/history`, {
+      params: { year, page, size },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    console.log('fetchLeaveHistory response:', response.data); // Debug response
+    dispatch({ type: 'FETCH_HISTORY_SUCCESS', payload: response.data });
+  } catch (error) {
+    const message = error.response?.data?.error || error.message || 'Failed to fetch history';
+    console.error('fetchLeaveHistory error:', message);
+    dispatch({ type: 'FETCH_HISTORY_FAILURE', payload: message });
+    throw error;
+  }
+};
+
+export const cancelLeave = (leaveId, token) => async dispatch => {
+  dispatch({ type: 'CANCEL_LEAVE_REQUEST' });
+  try {
+    await axios.delete(`http://localhost:5000/api/leaves/${leaveId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: 'CANCEL_LEAVE_SUCCESS', payload: leaveId });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to cancel leave';
+    console.error('Failed to cancel leave:', message);
+    dispatch({ type: 'CANCEL_LEAVE_FAILURE', payload: message });
+    throw error;
+  }
+};
+
+export const approveLeave = (leaveId, token) => async dispatch => {
+  dispatch({ type: 'APPROVE_LEAVE_REQUEST' });
+  try {
+    await axios.put(`http://localhost:5000/api/leaves/approve/${leaveId}`,null,//no body
+       {
+      headers: { Authorization: `Bearer ${token}` },
+      
+    });
+    console.log(leaveId)
+    console.log(token)
+    dispatch({ type: 'APPROVE_LEAVE_SUCCESS', payload: { id: leaveId } });
+    dispatch(fetchPendingLeaves(token));
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to approve leave';
+    console.error('Failed to approve leave:', message);
+    dispatch({ type: 'APPROVE_LEAVE_FAILURE', payload: message });
+    dispatch(fetchPendingLeaves(token));//after updation, without reloading the page it should show the updated one
+    throw error;
+  }
+};
+
+export const declineLeave = (leaveId, reason, token) => async dispatch =>{
+  dispatch({ type:'DECLINE_LEAVE_REQUEST' });
+  try {
+    await axios.put(`http://localhost:5000/api/leaves/reject/${leaveId}`,{declineReason: reason }, {
+      headers:{ Authorization: `Bearer ${token}`},
+    });
+    dispatch({ type: 'DECLINE_LEAVE_SUCCESS', payload:{ id: leaveId } });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.response?.data?.message||error.message||'Failed to decline leave';
     console.error('Failed to decline leave:', message);
     dispatch({ type: 'DECLINE_LEAVE_FAILURE', payload: message });
     throw error;
   }
 };
-};-->leaveAction(react)
+// Auth Actions: Handles login and logout
+import axios from 'axios';
 
-const rejectLeave = asyncHandler(async (req, res) => {
-  const { leaveId } = req.params;
-  const { declineReason } = req.body;
+export const LOGIN_REQUEST = 'LOGIN_REQUEST';
+export const LOGIN_SUCCESS = 'LOGIN_SUCCESS';
+export const LOGIN_FAILURE = 'LOGIN_FAILURE';
+export const LOGOUT = 'LOGOUT';
+
+export const login = (email, password) => async dispatch => {
+    dispatch({ type: LOGIN_REQUEST });
+    try {
+        sessionStorage.removeItem('token');
+        const response = await axios.post('http://localhost:5000/api/auth/login', { email, password });
+        sessionStorage.setItem('token', response.data.accessToken);
+        dispatch({ type: LOGIN_SUCCESS, payload: { token: response.data.accessToken, user: response.data.user } });
+        return response.data;
+    } catch (error) {
+        const message = error.response?.data?.errors?.[0] || 'Login failed';
+        dispatch({ type: LOGIN_FAILURE, payload: message });
+        throw error;
+    }
+};
+
+export const logout = () => (dispatch) => {
+    sessionStorage.removeItem('token');
+    dispatch({ type: LOGOUT });
+};
+
+export const loginSuccess = (payload) => ({
+    type: LOGIN_SUCCESS,
+    payload,
+});
+import { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { applyLeave } from '../redux/actions/leaveActions';
+import { addUser } from '../redux/actions/userActions'; 
+import {
+  getToken,
+  getLeaveLoading,
+  getLeaveError,
+  getUser
+} from '../redux/selectors';
+
+const ApplyLeave = () => {
+  const dispatch = useDispatch();
+  const token = useSelector(getToken);
+  const user = useSelector(getUser);
+  const loading = useSelector(getLeaveLoading);
+  const error = useSelector(getLeaveError);
+
+  const isAdmin = user?.role === 'ADMIN';
+
+  const [leaveData, setLeaveData] = useState({
+    category: '',
+    startDate: '',
+    endDate: '',
+    reason: '',
+  });
+
+  const [userData, setUserData] = useState({
+    email: '',
+    password: '',
+    role: 'EMPLOYEE',
+  });
+
+  const [addUserError, setAddUserError] = useState(null);
+  const [addUserLoading, setAddUserLoading] = useState(false);
+
+  const handleLeaveChange = (e) => {
+    const { name, value } = e.target;
+    setLeaveData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleUserChange = (e) => {
+    const { name, value } = e.target;
+    setUserData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleApply = async () => {
+    try {
+      const leaveDataWithEmail = {
+        ...leaveData,
+        employeeEmail: user?.email || '',
+      };
+      await dispatch(applyLeave(leaveDataWithEmail, token));
+      alert('Leave applied successfully');
+      setLeaveData({
+        category: '',
+        startDate: '',
+        endDate: '',
+        reason: '',
+      });
+    } catch (error) {
+      console.error('Error applying leave:', error.message);
+      alert(`Failed to apply leave: ${error.message}`);
+    }
+  };
+
+  const handleAddUser = async () => {
+    setAddUserError(null);
+    setAddUserLoading(true);
+    try {
+      await dispatch(addUser(userData, token));
+      alert('User added successfully');
+      setUserData({ email: '', password: '', role: 'EMPLOYEE' });
+    } catch (error) {
+      const message = error.message || 'Failed to add user';
+      console.error('Error adding user:', message);
+      setAddUserError(message);
+    } finally {
+      setAddUserLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      {isAdmin ? (
+        <>
+          <h2 className="text-center mb-4">Add New User</h2>
+          <div className="card p-4">
+            <div className="mb-3">
+              <label className="form-label">Email</label>
+              <input
+                type="email"
+                className="form-control"
+                name="email"
+                value={userData.email}
+                autoComplete='new-email'
+                onChange={handleUserChange}
+                required
+              />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Password</label>
+              <input
+                type="password"
+                className="form-control"
+                name="password"
+                value={userData.password}
+                onChange={handleUserChange}
+                autoComplete='new-password'
+                required
+              />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Role</label>
+              <select
+                className="form-control"
+                name="role"
+                value={userData.role}
+                onChange={handleUserChange}
+                required
+              >
+                <option value="EMPLOYEE">Employee</option>
+                <option value="ADMIN">Admin</option>
+              </select>
+            </div>
+            <button
+              className="btn btn-primary me-2"
+              onClick={handleAddUser}
+              disabled={addUserLoading}
+            >
+              {addUserLoading ? 'Adding...' : 'Add User'}
+            </button>
+            {addUserError && (
+              <div className="alert alert-danger mt-3" role="alert">
+                Error: {addUserError}
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <h2 className="text-center mb-4">Apply Leave</h2>
+          <div className="card p-4">
+            <div className="mb-3">
+              <label className="form-label">Category</label>
+              <select
+                className="form-control"
+                name="category"
+                value={leaveData.category}
+                onChange={handleLeaveChange}
+                required
+              >
+                <option value="">Select Category</option>
+                <option value="SICK">Sick Leave</option>
+                <option value="CASUAL">Casual Leave</option>
+                <option value="ANNUAL">Annual Leave</option>
+              </select>
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Start Date</label>
+              <input
+                type="date"
+                className="form-control"
+                name="startDate"
+                value={leaveData.startDate}
+                onChange={handleLeaveChange}
+                required
+              />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">End Date</label>
+              <input
+                type="date"
+                className="form-control"
+                name="endDate"
+                value={leaveData.endDate}
+                onChange={handleLeaveChange}
+                required
+              />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Reason</label>
+              <textarea
+                className="form-control"
+                name="reason"
+                value={leaveData.reason}
+                onChange={handleLeaveChange}
+                required
+              />
+            </div>
+            <button
+              className="btn btn-primary me-2"
+              onClick={handleApply}
+              disabled={loading}
+            >
+              {loading ? 'Applying...' : 'Apply'}
+            </button>
+            {error && (
+              <div className="alert alert-danger mt-3" role="alert">
+                Error: {error}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default ApplyLeave;
+
+//node.js part:-
+PORT=5000
+SPRING_BOOT_API=http://localhost:8080
+JWT_SECRET=216be307c8f5df540e04d2f0f59f3a47e61d98f9deb85a2614220e841a3230bcconst express = require('express');
+const router = express.Router();
+const { authMiddleware } = require('../middleware/authMiddleware');
+const { validateUsernameQuery, validateUserUpdate } = require('../middleware/validationMiddleware');
+const { getUserProfile, updateUserProfile, addUser } = require('../controllers/userController');
+
+router.post('/', authMiddleware, addUser); // Add this line for POST /api/users
+router.get('/profile', authMiddleware, validateUsernameQuery, getUserProfile);
+router.put('/profile', authMiddleware, validateUserUpdate, updateUserProfile);
+
+module.exports = router;const express = require('express');
+const router = express.Router();
+const { authMiddleware } = require('../middleware/authMiddleware');
+const {
+  validateLeaveRequest,
+  validateLeaveId,
+  validateRejectLeave,
+  validateUsernameQuery,
+  // validateHistoryQuery, // Temporarily removed
+} = require('../middleware/validationMiddleware');
+const {
+  applyLeave,
+  cancelLeave,
+  getCurrentLeaves,
+  getPendingLeaves,
+  approveLeave,
+  rejectLeave,
+  getLeaveHistory
+} = require('../controllers/leaveController');
+
+router.post('/apply', authMiddleware, validateLeaveRequest, applyLeave);
+router.delete('/:id', authMiddleware, validateLeaveId, cancelLeave); 
+router.get('/current', authMiddleware, getCurrentLeaves);//removes validateUsernameQuery
+router.get('/pending', authMiddleware, getPendingLeaves);
+router.put('/approve/:leaveId', authMiddleware, validateLeaveId, approveLeave);
+router.put('/reject/:leaveId', authMiddleware, validateLeaveId, validateRejectLeave, rejectLeave);
+router.get('/history', authMiddleware, getLeaveHistory); // Removed validateHistoryQuery
+
+module.exports = router;const { body, query, param, validationResult } = require('express-validator');
+const CustomError = require('../utils/customError');
+const constants = require('../utils/constants');
+const logger = require('../utils/logger');
+
+const validateLogin = [
+  body('email')
+    .notEmpty()
+    .withMessage('Email is required')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .matches(constants.EMAIL_REGEX)
+    .withMessage('Email must end with @infinite.com'),
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required')
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters long')
+    .matches(constants.PASSWORD_REGEX)
+    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateLeaveRequest = [
+  body('employeeEmail')
+    .notEmpty()
+    .withMessage('Employee email is required')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .matches(constants.EMAIL_REGEX)
+    .withMessage('Email must end with @infinite.com'),
+  body('startDate')
+    .notEmpty()
+    .withMessage('Start date is required')
+    .isDate()
+    .withMessage('Invalid start date format'),
+  body('endDate')
+    .notEmpty()
+    .withMessage('End date is required')
+    .isDate()
+    .withMessage('Invalid end date format'),
+  body('reason')
+    .notEmpty()
+    .withMessage('Reason is required'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateLeaveId = [
+  param('leaveId')
+    .isInt({ min: 1 })
+    .withMessage('Leave ID must be a positive integer'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateRejectLeave = [
+  body('declineReason')
+    .notEmpty()
+    .withMessage('Decline reason is required'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateUsernameQuery = [
+  query('employeeEmail')
+    .notEmpty()
+    .withMessage('Employee email is required idhar')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .matches(constants.EMAIL_REGEX)
+    .withMessage('Email must end with @infinite.com'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateHistoryQuery = [
+  query('employeeEmail')
+    .notEmpty()
+    .withMessage('Employee email is required')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .matches(constants.EMAIL_REGEX)
+    .withMessage('Email must end with @infinite.com'),
+  query('year')
+    .optional()
+    .isInt({ min: 2000, max: 2100 })
+    .withMessage('Year must be between 2000 and 2100'),
+  query('page')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Page must be a non-negative integer'),
+  query('size')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Size must be a positive integer'),
+  query('sortBy')
+    .optional()
+    .isIn(['startDate', 'endDate', 'status'])
+    .withMessage('Sort by must be one of: startDate, endDate, status'),
+  query('direction')
+    .optional()
+    .isIn(['ASC', 'DESC'])
+    .withMessage('Direction must be ASC or DESC'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateUserUpdate = [
+  body('employeeEmail')
+    .notEmpty()
+    .withMessage('Employee email is required')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .matches(constants.EMAIL_REGEX)
+    .withMessage('Email must end with @infinite.com'),
+  body('firstName')
+    .optional()
+    .isString()
+    .withMessage('First name must be a string'),
+  body('lastName')
+    .optional()
+    .isString()
+    .withMessage('Last name must be a string'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+module.exports = {
+  validateLogin,
+  validateLeaveRequest,
+  validateLeaveId,
+  validateRejectLeave,
+  validateUsernameQuery,
+  validateHistoryQuery,
+  validateUserUpdate,
+};const logger = require('../utils/logger');
+const constants = require('../utils/constants');
+
+const errorMiddleware = (error, req, res, next) => {
+  if (error instanceof Error && error.isOperational) {
+    logger.warn(`Operational error: ${error.message}`);
+    return res.status(error.statusCode).json({
+      errors: [error.message],
+      status: error.statusCode,
+    });
+  }
+  logger.error(`Unexpected error: ${error.message}`);
+  return res.status(constants.status.INTERNAL_SERVER_ERROR).json({
+    errors: ['Internal server error'],
+    status: constants.status.INTERNAL_SERVER_ERROR,
+  });
+};
+
+module.exports = { errorMiddleware };const logger = require('../utils/logger');
+const constants = require('../utils/constants');
+
+const errorMiddleware = (error, req, res, next) => {
+  if (error instanceof Error && error.isOperational) {
+    logger.warn(`Operational error: ${error.message}`);
+    return res.status(error.statusCode).json({
+      errors: [error.message],
+      status: error.statusCode,
+    });
+  }
+  logger.error(`Unexpected error: ${error.message}`);
+  return res.status(constants.status.INTERNAL_SERVER_ERROR).json({
+    errors: ['Internal server error'],
+    status: constants.status.INTERNAL_SERVER_ERROR,
+  });
+};
+
+module.exports = { errorMiddleware };const axios = require('axios');
+const { handleAxiosError } = require('../utils/errorHandler');
+const env = require('../config/env');
+
+const getUserProfile = async (req, res) => {
   try {
-    const response = await axios.put(`${env.SPRING_BOOT_API}/api/leaves/reject/${leaveId}`, {
-      declineReason,
-    }, {
+    const response = await axios.get(`${env.SPRING_BOOT_API}/api/users/profile`, {
       headers: { Authorization: req.headers.authorization },
     });
-    res.status(constants.status.OK).json(response.data);
+    res.status(response.status).json(response.data);
   } catch (error) {
     handleAxiosError(error, res);
   }
-});->leaveController(node)
+};
 
-@PutMapping("/reject/{leaveId}")
+const updateUserProfile = async (req, res) => {
+  try {
+    const response = await axios.put(`${env.SPRING_BOOT_API}/api/users/profile`, req.body, {
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+};
+
+// Add the new controller function for adding users
+const addUser = async (req, res) => {
+  try {
+    const response = await axios.post(`${env.SPRING_BOOT_API}/api/users`, req.body, {
+      headers: { Authorization: req.headers.authorization },
+      
+    });
+    console.log('Request headers:', { Authorization: req.headers.authorization });
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.log('Error forwarding to Spring Boot:', error.response?.status, error.response?.data);
+    handleAxiosError(error, res);
+  }
+};
+
+module.exports = { getUserProfile, updateUserProfile, addUser };const asyncHandler = require('express-async-handler');
+const axios = require('axios');
+const jwt = require('jsonwebtoken');
+const CustomError = require('../utils/customError');
+const constants = require('../utils/constants');
+const env = require('../config/env');
+const logger = require('../utils/logger');
+const { handleAxiosError } = require('../utils/errorHandler');
+ 
+const login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+ 
+  if (!email || !password) {
+    throw new CustomError(
+      constants.errorMessages.MISSING_FIELDS,
+      constants.status.BAD_REQUEST
+    );
+  }
+ 
+  try {
+    // Send login request to Spring Boot API
+    const response = await axios.post(`${env.SPRING_BOOT_API}/api/auth/login`, {
+      email,
+      password,
+    });
+ 
+    const userRole = response.data.role;
+ 
+    // Ensure role is either ADMIN or EMPLOYEE
+    if (!['ADMIN', 'EMPLOYEE'].includes(userRole)) {
+      throw new CustomError('Invalid role returned from backend', constants.status.BAD_REQUEST);
+    }
+ 
+    // Generate JWT with single role
+    const token = jwt.sign(
+      {
+        sub: email,
+        role: userRole, // Fixed: single role instead of roles array
+      },
+      env.JWT_SECRET,
+      { expiresIn: constants.JWT_EXPIRES_IN }
+    );
+ 
+    logger.info(`User ${email} logged in successfully`);
+ 
+    res.status(constants.status.OK).json({
+      accessToken: token,
+      user: response.data,
+    });
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+ 
+module.exports = { login };require('dotenv').config();
+
+module.exports = {
+  PORT: process.env.PORT || 5000,
+  SPRING_BOOT_API: process.env.SPRING_BOOT_API || 'http://localhost:8080',
+  JWT_SECRET: process.env.JWT_SECRET || 'default-secret',
+};
+
+//spring boot:
+# MySQL Database connection
+spring.datasource.url=jdbc:mysql://localhost:3306/leave_db
+spring.datasource.username=root
+spring.datasource.password=admin
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+# Hibernate JPA settings
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+
+#logging and debugging
+logging.level.org.springframework=INFO
+logging.level.org.springframework.security=DEBUG
+logging.level.com.example.ems=DEBUG
+package com.example.ems.service;
+
+import com.example.ems.dto.UserDto;
+import com.example.ems.entity.User;
+import com.example.ems.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class UserServiceImpl implements UserService {
+    private final UserRepository userRepository;
+    private final BCryptPasswordEncoder passwordEncoder;
+    private static final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
+    private static final String PASSWORD_PATTERN = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$";
+
+    @Override
+    public User createUser(UserDto userDto) {
+        logger.info("Creating user with email: {}", userDto.email());
+        if (!userDto.email().endsWith("@infinite.com")) {
+            logger.error("Invalid email domain for user: {}", userDto.email());
+            throw new IllegalArgumentException("Email must belong to the infinite.com domain");
+        }
+
+        String password = userDto.password();
+        if (!password.matches(PASSWORD_PATTERN)) {
+            logger.error("Invalid password for user: {}", userDto.email());
+            throw new IllegalArgumentException("Password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one digit, and one special character (@$!%*?&)");
+        }
+
+        User user = new User();
+        user.setEmail(userDto.email());
+        user.setPassword(passwordEncoder.encode(password));
+        user.setRole(userDto.role());
+        return userRepository.save(user);
+    }
+
+    @Override
+    public User getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+    }
+
+    @Override
+    public User updateUser(User user) {
+        logger.info("Updating user with email: {}", user.getEmail());
+        if (!user.getEmail().endsWith("@infinite.com")) {
+            logger.error("Invalid email domain for user: {}", user.getEmail());
+            throw new IllegalArgumentException("Email must belong to the infinite.com domain");
+        }
+
+        if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+            if (!user.getPassword().matches(PASSWORD_PATTERN)) {
+                logger.error("Invalid password for user: {}", user.getEmail());
+                throw new IllegalArgumentException("Password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one digit, and one special character (@$!%*?&)");
+            }
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
+
+        return userRepository.save(user);
+    }
+}
+package com.example.ems.service;
+
+import com.example.ems.dto.UserDto;
+import com.example.ems.entity.User;
+
+public interface UserService {
+    User createUser(UserDto userDto);
+    User getUserByEmail(String email);
+    User updateUser(User user);
+}
+package com.example.ems.service;
+
+import com.example.ems.dto.LeaveRequestDto;
+import com.example.ems.entity.LeaveRequest;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+// Interface defining methods for leave-related operations
+public interface LeaveService {
+    // Applies a new leave request for an employee
+    LeaveRequest applyLeave(LeaveRequestDto dto, HttpServletRequest request);
+
+    // Fetches leave history for a specific user with pagination and optional year filter
+    Page<LeaveRequest> getLeaveHistory(String email, Pageable pageable, Integer year);
+
+    // Fetches all leave requests with pagination (for admins)
+    Page<LeaveRequest> getAllLeaveHistory(Pageable pageable);
+
+    // Approves a leave request by ID (admin only)
+    LeaveRequest approveLeave(Long leaveId, HttpServletRequest request);
+
+    // Rejects a leave request by ID (admin only)
+    LeaveRequest rejectLeave(Long leaveId, HttpServletRequest request);
+
+    void cancelLeave(Long leaveId, HttpServletRequest request);
+}
+package com.example.ems.service;
+
+import com.example.ems.entity.User;
+import com.example.ems.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import java.util.Collections;
+
+// Service for custom authentication, implementing Spring Security's AuthenticationProvider
+@Service
+@RequiredArgsConstructor
+public class AuthProviderService implements AuthenticationProvider {
+    private final UserRepository userRepository; // Repository for user data
+    private final PasswordEncoder passwordEncoder; // Password encoder for verifying passwords
+
+    // Authenticates a user based on email and password
+    @Override
+    public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+        String email = authentication.getName();
+        String password = authentication.getCredentials().toString();
+
+        // Fetch user by email
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
+
+        // Verify password
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new BadCredentialsException("Invalid email or password");
+        }
+
+        // Create authentication token with user role
+        return new UsernamePasswordAuthenticationToken(
+                email,
+                password,
+                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
+        );
+    }
+
+  package com.example.ems.repository;
+
+import com.example.ems.entity.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+// Repository interface for managing User entities
+public interface UserRepository extends JpaRepository<User, Long> {
+    // Find a user by their email
+    Optional<User> findByEmail(String email);
+}
+package com.example.ems.repository;
+
+import com.example.ems.entity.LeaveRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+
+import java.time.LocalDate;
+import java.util.List;
+
+// Repository interface for managing LeaveRequest entities
+// Extends JpaRepository for CRUD and pagination, and JpaSpecificationExecutor for dynamic queries
+public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long>, JpaSpecificationExecutor<LeaveRequest> {
+
+    // Fetches leave requests for a user by email, ordered by start date in descending order
+    // Uses pagination for efficient data retrieval
+    Page<LeaveRequest> findByUserEmailOrderByStartDateDesc(String email, Pageable pageable);
+
+    // Finds approved leave requests that overlap with the given date range for a user
+    // Uses a custom JPQL query to check date overlaps and status
+    @Query("SELECT lr FROM LeaveRequest lr WHERE lr.user.email = :email AND " +
+           "((lr.startDate <= :endDate AND lr.endDate >= :startDate) AND lr.status = 'APPROVED')")
+    List<LeaveRequest> findOverlappingLeaves(String email, LocalDate startDate, LocalDate endDate);
+
+    // Calculates the total number of approved leave days for a user in a given year
+    // Uses DATEDIFF to compute the number of days between start and end dates
+    @Query("SELECT SUM(DATEDIFF(lr.endDate, lr.startDate) + 1) FROM LeaveRequest lr " +
+           "WHERE lr.user.email = :email AND YEAR(lr.startDate) = :year AND lr.status = 'APPROVED'")
+    Long calculateLeaveDays(String email, int year);
+}
+package com.example.ems.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+// Custom exception for handling cases where a resource (e.g., user, leave request) is not found
+// Automatically returns HTTP 404 (Not Found) when thrown
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class ResourceNotFoundException extends RuntimeException {
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+	// Constructor that accepts an error message
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
+}
+package com.example.ems.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+// Custom exception for handling cases where a resource (e.g., user, leave request) is not found
+// Automatically returns HTTP 404 (Not Found) when thrown
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class ResourceNotFoundException extends RuntimeException {
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+	// Constructor that accepts an error message
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
+}
+package com.example.ems.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+// Custom exception for handling cases where a resource (e.g., user, leave request) is not found
+// Automatically returns HTTP 404 (Not Found) when thrown
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class ResourceNotFoundException extends RuntimeException {
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+	// Constructor that accepts an error message
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
+}
+package com.example.ems.exception;
+
+// Custom exception for leave validation errors
+public class LeaveValidationException extends RuntimeException {
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+	public LeaveValidationException(String message) {
+        super(message);
+    }
+}
+package com.example.ems.exception;
+
+import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.concurrent.TimeoutException;
+
+// Global exception handler for handling all application exceptions
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class); // Logger for debugging
+
+    // Handles validation errors for request body fields
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<String> handleValidationException(MethodArgumentNotValidException ex) {
+        String errorMessage = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .reduce((msg1, msg2) -> msg1 + "; " + msg2)
+                .orElse("Validation failed");
+        logger.error("Validation error: {}", errorMessage);
+        return new ResponseEntity<>(errorMessage, HttpStatus.BAD_REQUEST);
+    }
+
+    // Handles constraint violation errors (e.g., invalid input)
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<String> handleConstraintViolationException(ConstraintViolationException ex) {
+        String errorMessage = ex.getConstraintViolations().stream()
+                .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
+                .reduce((msg1, msg2) -> msg1 + "; " + msg2)
+                .orElse("Constraint violation");
+        logger.error("Constraint violation: {}", errorMessage);
+        return new ResponseEntity<>(errorMessage, HttpStatus.BAD_REQUEST);
+    }
+
+    // Handles custom leave validation errors
+    @ExceptionHandler(LeaveValidationException.class)
+    public ResponseEntity<String> handleLeaveValidationException(LeaveValidationException ex) {
+        logger.error("Leave validation error: {}", ex.getMessage());
+        return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    // Handles resource not found errors (e.g., user or leave request not found)
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<String> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        logger.error("Resource not found: {}", ex.getMessage());
+        return new ResponseEntity<>(ex.getMessage(), HttpStatus.NOT_FOUND);
+    }
+
+    // Handles illegal argument errors
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleIllegalArgumentException(IllegalArgumentException ex) {
+        logger.error("Illegal argument: {}", ex.getMessage());
+        return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    // Handles invalid JSON format errors
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<String> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
+        logger.error("Invalid JSON format: {}", ex.getMessage());
+        return new ResponseEntity<>("Invalid JSON format", HttpStatus.BAD_REQUEST);
+    }
+
+    // Handles bad credentials errors (e.g., wrong email/password)
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<String> handleBadCredentialsException(BadCredentialsException ex) {
+        logger.error("Authentication failed: {}", ex.getMessage());
+        return new ResponseEntity<>("Invalid email or password", HttpStatus.UNAUTHORIZED);
+    }
+
+    // Handles access denied errors (e.g., insufficient permissions)
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<String> handleAccessDeniedException(AccessDeniedException ex) {
+        logger.error("Access denied: {}", ex.getMessage());
+        return new ResponseEntity<>("Access denied: Insufficient permissions", HttpStatus.FORBIDDEN);
+    }
+
+    // Handles Spring-specific response status exceptions
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<String> handleResponseStatusException(ResponseStatusException ex) {
+        logger.error("Response status error: {}", ex.getMessage());
+        return new ResponseEntity<>(ex.getReason(), ex.getStatusCode());
+    }
+
+    // Handles database errors
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<String> handleDataAccessException(DataAccessException ex) {
+        logger.error("Database error: {}", ex.getMessage());
+        return new ResponseEntity<>("Database error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    // Handles timeout errors
+    @ExceptionHandler(TimeoutException.class)
+    public ResponseEntity<String> handleTimeoutException(TimeoutException ex) {
+        logger.error("Server timeout: {}", ex.getMessage());
+        return new ResponseEntity<>("Server took too long to respond", HttpStatus.REQUEST_TIMEOUT);
+    }
+
+    // Handles all other unexpected errors
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<String> handleGeneralException(Exception ex) {
+        logger.error("Unexpected error: {}", ex.getMessage(), ex);
+        return new ResponseEntity<>("Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+}
+package com.example.ems.exception;
+
+import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.concurrent.TimeoutException;
+
+// Global exception handler for handling all application exceptions
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class); // Logger for debugging
+
+    // Handles validation errors for request body fields
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<String> handleValidationException(MethodArgumentNotValidException ex) {
+        String errorMessage = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .reduce((msg1, msg2) -> msg1 + "; " + msg2)
+                .orElse("Validation failed");
+        logger.error("Validation error: {}", errorMessage);
+        return new ResponseEntity<>(errorMessage, HttpStatus.BAD_REQUEST);
+    }
+
+    // Handles constraint violation errors (e.g., invalid input)
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<String> handleConstraintViolationException(ConstraintViolationException ex) {
+        String errorMessage = ex.getConstraintViolations().stream()
+                .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
+                .reduce((msg1, msg2) -> msg1 + "; " + msg2)
+                .orElse("Constraint violation");
+        logger.error("Constraint violation: {}", errorMessage);
+        return new ResponseEntity<>(errorMessage, HttpStatus.BAD_REQUEST);
+    }
+
+    // Handles custom leave validation errors
+    @ExceptionHandler(LeaveValidationException.class)
+    public ResponseEntity<String> handleLeaveValidationException(LeaveValidationException ex) {
+        logger.error("Leave validation error: {}", ex.getMessage());
+        return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    // Handles resource not found errors (e.g., user or leave request not found)
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<String> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        logger.error("Resource not found: {}", ex.getMessage());
+        return new ResponseEntity<>(ex.getMessage(), HttpStatus.NOT_FOUND);
+    }
+
+    // Handles illegal argument errors
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleIllegalArgumentException(IllegalArgumentException ex) {
+        logger.error("Illegal argument: {}", ex.getMessage());
+        return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    // Handles invalid JSON format errors
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<String> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
+        logger.error("Invalid JSON format: {}", ex.getMessage());
+        return new ResponseEntity<>("Invalid JSON format", HttpStatus.BAD_REQUEST);
+    }
+
+    // Handles bad credentials errors (e.g., wrong email/password)
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<String> handleBadCredentialsException(BadCredentialsException ex) {
+        logger.error("Authentication failed: {}", ex.getMessage());
+        return new ResponseEntity<>("Invalid email or password", HttpStatus.UNAUTHORIZED);
+    }
+
+    // Handles access denied errors (e.g., insufficient permissions)
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<String> handleAccessDeniedException(AccessDeniedException ex) {
+        logger.error("Access denied: {}", ex.getMessage());
+        return new ResponseEntity<>("Access denied: Insufficient permissions", HttpStatus.FORBIDDEN);
+    }
+
+    // Handles Spring-specific response status exceptions
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<String> handleResponseStatusException(ResponseStatusException ex) {
+        logger.error("Response status error: {}", ex.getMessage());
+        return new ResponseEntity<>(ex.getReason(), ex.getStatusCode());
+    }
+
+    // Handles database errors
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<String> handleDataAccessException(DataAccessException ex) {
+        logger.error("Database error: {}", ex.getMessage());
+        return new ResponseEntity<>("Database error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    // Handles timeout errors
+    @ExceptionHandler(TimeoutException.class)
+    public ResponseEntity<String> handleTimeoutException(TimeoutException ex) {
+        logger.error("Server timeout: {}", ex.getMessage());
+        return new ResponseEntity<>("Server took too long to respond", HttpStatus.REQUEST_TIMEOUT);
+    }
+
+    // Handles all other unexpected errors
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<String> handleGeneralException(Exception ex) {
+        logger.error("Unexpected error: {}", ex.getMessage(), ex);
+        return new ResponseEntity<>("Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+}
+package com.example.ems.enums;
+
+import com.fasterxml.jackson.annotation.JsonValue;
+
+// Enum representing user roles
+public enum Role {
+    ADMIN,
+    EMPLOYEE;
+
+    // Returns the role as a string for JSON serialization
+    @JsonValue
+    public String getValue() {
+        return this.name();
+    }
+}
+package com.example.ems.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+import java.util.ArrayList;
+import com.example.ems.enums.Role;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
+// Entity representing a user (employee or admin) in the leave management system
+@Entity
+@Data
+@NoArgsConstructor
+public class User {
+    // Unique identifier for the user
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // User's email, acts as username, must be unique and non-null
+    @Column(unique = true, nullable = false)
+    private String email;
+
+    // User's password, non-null
+    @Column(nullable = false)
+    private String password;
+
+    // User's role (EMPLOYEE or ADMIN)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
+
+    // One-to-many relationship with leave requests
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference //added in parent side to avoid circular loop
+    private List<LeaveRequest> leaveRequests=new ArrayList<>();
+}
+package com.example.ems.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDate;
+
+import com.example.ems.enums.LeaveStatus;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
+// Entity representing a leave request submitted by a user
+@Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class LeaveRequest {
+    // Unique identifier for the leave request
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // Many-to-one relationship with User entity, not-null
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    @JsonBackReference //added in the child side to avoid circular loop
+    private User user;
+package com.example.ems.dto;
+
+import com.example.ems.enums.Role;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+
+// DTO for capturing user input during registration, using Java 21 record for immutability
+public record UserDto(
+        // User's email, acts as username, must be valid and non-blank
+        @NotBlank(message = "Email is required")
+        @Email(message = "Invalid email format")
+        String email,
+
+        // User's password, must meet strength requirements
+        @NotBlank(message = "Password is required")
+        @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
+                message = "Password must be at least 8 characters, include uppercase, lowercase, number, and special character")
+        String password,
+
+        // User's role (EMPLOYEE or ADMIN), must not be null
+        @NotNull(message = "Role is required")
+        Role role
+) {}package com.example.ems.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+// Custom exception for handling cases where a resource (e.g., user, leave request) is not found
+// Automatically returns HTTP 404 (Not Found) when thrown
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class ResourceNotFoundException extends RuntimeException {
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+	// Constructor that accepts an error message
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
+}package com.example.ems.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.time.LocalDate;
+
+public record LeaveRequestDto(
+        @NotBlank(message = "Employee email is required") String employeeEmail,
+        @NotNull(message = "Start date is required") LocalDate startDate,
+        @NotNull(message = "End date is required") LocalDate endDate,
+        @NotBlank(message = "Reason is required") String reason
+) {}package com.example.ems.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.time.LocalDate;
+
+public record LeaveRequestDto(
+        @NotBlank(message = "Employee email is required") String employeeEmail,
+        @NotNull(message = "Start date is required") LocalDate startDate,
+        @NotNull(message = "End date is required") LocalDate endDate,
+        @NotBlank(message = "Reason is required") String reason
+) {}package com.example.ems.dto;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+@Data
+@AllArgsConstructor
+public class AuthResponse {
+    private String email;
+    private String role;
+
+}package com.example.ems.controller;
+
+import com.example.ems.dto.UserDto;
+import com.example.ems.entity.User;
+import com.example.ems.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
+
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public User createUser(@Valid @RequestBody UserDto userDto) {
+        return userService.createUser(userDto);
+    }
+
+    @GetMapping("/profile")
+    public User getProfile(HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        return userService.getUserByEmail(email);
+    }
+
+    @PutMapping("/profile")
+    public User updateProfile(@RequestBody UserDto userDto, HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        User user = userService.getUserByEmail(email);
+        user.setEmail(userDto.email());
+        if (userDto.password() != null && !userDto.password().isEmpty()) {
+            user.setPassword(passwordEncoder.encode(userDto.password()));
+        }
+        user.setRole(userDto.role());
+        return userService.updateUser(user);
+    }
+}package com.example.ems.controller;
+
+import com.example.ems.dto.LeaveRequestDto;
+import com.example.ems.entity.LeaveRequest;
+import com.example.ems.enums.LeaveStatus;
+import com.example.ems.exception.LeaveValidationException;
+import com.example.ems.service.LeaveService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api/leaves")
+public class LeaveController {
+    private static final Logger logger = LoggerFactory.getLogger(LeaveController.class);
+    private final LeaveService leaveService;
+
+    public LeaveController(LeaveService leaveService) {
+        this.leaveService = leaveService;
+    }
+
+    @PostMapping("/apply")
+    public LeaveRequest applyLeave(@Valid @RequestBody LeaveRequestDto leaveRequestDto, HttpServletRequest request) {
+        logger.info("Received leave request with employeeEmail: {}", leaveRequestDto.employeeEmail());
+        return leaveService.applyLeave(leaveRequestDto, request);
+    }
+
+    @GetMapping("/history")
+    public Page<LeaveRequest> getLeaveHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Integer year, // Added year parameter
+            HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        Pageable pageable = PageRequest.of(page, size);
+        return leaveService.getLeaveHistory(email, pageable, year);
+    }
+
+    @GetMapping("/all")
+    public Page<LeaveRequest> getAllLeaveHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return leaveService.getAllLeaveHistory(pageable);
+    }
+
+    @GetMapping("/current")
+    public Page<LeaveRequest> getCurrentLeaves(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        if (email == null) {
+            logger.error("Token email is null in getCurrentLeaves");
+            throw new LeaveValidationException("Authentication token is invalid or missing");
+        }
+        logger.info("Fetching current leaves for user: {}", email);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<LeaveRequest> history = leaveService.getLeaveHistory(email, pageable, null);
+        List<LeaveRequest> currentLeaves = history.getContent().stream()
+                .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
+                .collect(Collectors.toList());
+        return new PageImpl<>(currentLeaves, pageable, history.getTotalElements());
+    }
+
+    @GetMapping("/pending")
+    public Page<LeaveRequest> getPendingLeaves(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        logger.info("Fetching pending leaves, page: {}, size: {}", page, size);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<LeaveRequest> allLeaves = leaveService.getAllLeaveHistory(pageable);
+        List<LeaveRequest> pendingLeaves = allLeaves.getContent().stream()
+                .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
+                .collect(Collectors.toList());
+        return new PageImpl<>(pendingLeaves, pageable, allLeaves.getTotalElements());
+    }
+    @PutMapping("/approve/{leaveId}")
+    public LeaveRequest approveLeave(@PathVariable Long leaveId, HttpServletRequest request) {
+        return leaveService.approveLeave(leaveId, request);
+    }
+
+    @PutMapping("/reject/{leaveId}")
     public LeaveRequest rejectLeave(@PathVariable Long leaveId, HttpServletRequest request) {
         return leaveService.rejectLeave(leaveId, request);
-    }->leaveController(spring)
+    }
+
+    @DeleteMapping("/{leaveId}")
+    public void cancelLeave(@PathVariable Long leaveId, HttpServletRequest request) {
+        logger.info("Cancelling leave request with ID: {}", leaveId);
+        leaveService.cancelLeave(leaveId, request);
+    }
+}package com.example.ems.controller;
+
+import com.example.ems.dto.AuthRequest;
+import com.example.ems.dto.AuthResponse;
+import com.example.ems.exception.AuthenticationException;
+import com.example.ems.service.AuthService;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+// Handles authentication requests
+@RestController
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
+public class AuthController {
+    private final AuthService authService;
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+
+    // Employee or Admin login
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest authRequest) {
+        logger.info("Login attempt for email: {}", authRequest.getEmail());
+        try {
+            AuthResponse response = authService.authenticate(authRequest.getEmail(), authRequest.getPassword());
+            logger.info("Login successful for email: {}", authRequest.getEmail());
+            return ResponseEntity.ok(response);
+        } catch (AuthenticationException e) {
+            logger.error("Login failed for email: {}. Error: {}", authRequest.getEmail(), e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+    }
+
+    // Admin-only login
+    @PostMapping("/admin/login")
+    public ResponseEntity<AuthResponse> adminLogin(@RequestBody AuthRequest authRequest) {
+        logger.info("Admin login attempt for email: {}", authRequest.getEmail());
+        try {
+            AuthResponse response = authService.authenticateAdmin(authRequest.getEmail(), authRequest.getPassword());
+            logger.info("Admin login successful for email: {}", authRequest.getEmail());
+            return ResponseEntity.ok(response);
+        } catch (AuthenticationException e) {
+            logger.error("Admin login failed for email: {}. Error: {}", authRequest.getEmail(), e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+    }
+}package com.example.ems.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+@Configuration
+public class SecurityConfig {
+    private final JwtFilter jwtFilter;
+
+    public SecurityConfig(JwtFilter jwtFilter) {
+        this.jwtFilter = jwtFilter;
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf().disable()
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/leaves/all", "/api/leaves/pending", "/api/leaves/approve/**", "/api/leaves/reject/**")
+                .hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/users").hasRole("ADMIN")
+                .anyRequest().authenticated()
+            )
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+        return http.build();
+    }
+
+    @Bean
+    public BCryptPasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+}package com.example.ems.config;
+ 
+import io.jsonwebtoken.Claims;
+
+import io.jsonwebtoken.Jwts;
+
+import jakarta.servlet.FilterChain;
+
+import jakarta.servlet.ServletException;
+
+import jakarta.servlet.http.HttpServletRequest;
+
+import jakarta.servlet.http.HttpServletResponse;
+ 
+import org.slf4j.Logger;
+
+import org.slf4j.LoggerFactory;
+
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import org.springframework.stereotype.Component;
+
+import org.springframework.web.filter.OncePerRequestFilter;
+ 
+import java.io.IOException;
+
+import java.util.Collections;
+
+import java.util.List;
+ 
+@Component
+
+public class JwtFilter extends OncePerRequestFilter {
+ 
+    private static final Logger logger = LoggerFactory.getLogger(JwtFilter.class);
+
+    private static final String SECRET_KEY = "216be307c8f5df540e04d2f0f59f3a47e61d98f9deb85a2614220e841a3230bc";
+ 
+    @Override
+
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+
+            throws ServletException, IOException {
+ 
+        String authHeader = request.getHeader("Authorization");
+ 
+        logger.info("Authorization header: {}", authHeader);
+ 
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+
+            String token = authHeader.substring(7);
+
+            try {
+
+                Claims claims = Jwts.parser()
+
+                        .setSigningKey(SECRET_KEY.getBytes())
+
+                        .parseClaimsJws(token)
+
+                        .getBody();
+ 
+                String email = claims.getSubject();
+
+                String role = claims.get("role", String.class); // Ensure 'role' exists
+ 
+                if (role == null || role.isEmpty()) {
+
+                    logger.error("Role claim missing in token for email: {}", email);
+
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+
+                    response.getWriter().write("{\"errors\": [\"Role claim missing in token\"], \"status\": 403}");
+
+                    return;
+
+                }
+ 
+                logger.info("Token validated. Email: {}, Role: {}", email, role);
+ 
+                List<SimpleGrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(email, null, authorities);
+ 
+                SecurityContextHolder.getContext().setAuthentication(auth);
+
+                request.setAttribute("email", email);
+ 
+            } catch (Exception e) {
+
+                logger.error("Token validation failed: {}", e.getMessage());
+
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+
+                response.getWriter().write("{\"errors\": [\"Invalid or expired token\"], \"status\": 403}");
+
+                return;
+
+            }
+
+        } else {
+
+            logger.warn("No Authorization header found or invalid format");
+
+        }
+ 
+        chain.doFilter(request, response);
+
+    }
+
+}
+ 
+    // Start date of the leave
+    private LocalDate startDate;
+
+    // End date of the leave
+    private LocalDate endDate;
+
+    // Reason for the leave request
+    private String reason;
+
+    // Status of the leave request (PENDING, APPROVED, REJECTED)
+    @Enumerated(EnumType.STRING)
+    private LeaveStatus status;
+}
