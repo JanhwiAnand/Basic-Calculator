@@ -1,8 +1,13 @@
-import { useState } from 'react';
+             import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { applyLeave } from '../redux/actions/leaveActions';
-import { getToken, getLeaveLoading, getLeaveError, getUser } from '../redux/selectors';
-import axios from 'axios';
+import { addUser } from '../redux/actions/userActions'; // ✅ Import added
+import {
+  getToken,
+  getLeaveLoading,
+  getLeaveError,
+  getUser
+} from '../redux/selectors';
 
 const ApplyLeave = () => {
   const dispatch = useDispatch();
@@ -13,7 +18,6 @@ const ApplyLeave = () => {
 
   const isAdmin = user?.role === 'ADMIN';
 
-  // State for Apply Leave form (for Employees)
   const [leaveData, setLeaveData] = useState({
     category: '',
     startDate: '',
@@ -21,12 +25,12 @@ const ApplyLeave = () => {
     reason: '',
   });
 
-  // State for Add New User form (for Admins)
   const [userData, setUserData] = useState({
     email: '',
     password: '',
-    role: 'EMPLOYEE', // Default role
+    role: 'EMPLOYEE',
   });
+
   const [addUserError, setAddUserError] = useState(null);
   const [addUserLoading, setAddUserLoading] = useState(false);
 
@@ -46,7 +50,6 @@ const ApplyLeave = () => {
         ...leaveData,
         employeeEmail: user?.email || '',
       };
-      console.log('Applying leave with data:', leaveDataWithEmail);
       await dispatch(applyLeave(leaveDataWithEmail, token));
       alert('Leave applied successfully');
       setLeaveData({
@@ -65,14 +68,11 @@ const ApplyLeave = () => {
     setAddUserError(null);
     setAddUserLoading(true);
     try {
-      console.log('Adding new user with data:', userData);
-      const response = await axios.post('http://localhost:5000/api/users', userData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await dispatch(addUser(userData, token));
       alert('User added successfully');
       setUserData({ email: '', password: '', role: 'EMPLOYEE' });
     } catch (error) {
-      const message = error.response?.data?.error || error.message || 'Failed to add user';
+      const message = error.message || 'Failed to add user';
       console.error('Error adding user:', message);
       setAddUserError(message);
     } finally {
@@ -83,7 +83,6 @@ const ApplyLeave = () => {
   return (
     <div>
       {isAdmin ? (
-        // Add New User Form for Admins
         <>
           <h2 className="text-center mb-4">Add New User</h2>
           <div className="card p-4">
@@ -137,7 +136,6 @@ const ApplyLeave = () => {
           </div>
         </>
       ) : (
-        // Apply Leave Form for Employees
         <>
           <h2 className="text-center mb-4">Apply Leave</h2>
           <div className="card p-4">
@@ -208,17 +206,3 @@ const ApplyLeave = () => {
 };
 
 export default ApplyLeave;
-// User Actions: Handles user-related operations (e.g., add user)
-import axios from 'axios';
-
-export const addUser = (userData, token) => async dispatch => {
-  dispatch({ type: 'ADD_USER_REQUEST' });
-  try {
-    const response = await axios.post('http://localhost:5000/api/users', userData, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    dispatch({ type: 'ADD_USER_SUCCESS', payload: response.data });
-  } catch (error) {
-    dispatch({ type: 'ADD_USER_FAILURE', payload: error.response?.data?.errors[0] || 'Failed to add user' });
-  }
-};
