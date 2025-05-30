@@ -15,54 +15,67 @@ const Login = () => {
     setError(null);
     setLoading(true);
     try {
-      console.log('Attempting login with:', { email, password });
       await dispatch(login(email, password));
       setLoading(false);
     } catch (error) {
       setLoading(false);
-      const errorMessage = 'Invalid username or password';
-      console.error('Login failed:', errorMessage);
-      setError(errorMessage);
+      setError('Invalid username or password');
     }
   };
 
   return (
-    <div>
-      <h2 className="text-center mb-4">Login</h2>
-      <div className="card p-4">
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label className="form-label">Email</label>
-            <input
-              type="email"
-              className="form-control"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete='new-email'
-              required
-            />
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(to right, #74ebd5, #ACB6E5)', display: 'flex', flexDirection: 'column' }}>
+      
+      {/* Header */}
+      <header className="bg-white shadow-sm p-3 text-center">
+        <h3 className="text-primary mb-0">Employee Leave Management System</h3>
+      </header>
+
+      {/* Main Login Card */}
+      <div className="container flex-grow-1 d-flex align-items-center justify-content-center">
+        <div className="col-md-5">
+          <div className="card p-4 shadow-lg rounded-4">
+            <h4 className="text-center text-primary mb-4">Login</h4>
+            <form onSubmit={handleSubmit}>
+              <div className="mb-3">
+                <label className="form-label">Email</label>
+                <input
+                  type="email"
+                  className="form-control"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="new-email"
+                  required
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Password</label>
+                <input
+                  type="password"
+                  className="form-control"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+              <button type="submit" className="btn btn-primary w-100" disabled={loading}>
+                {loading ? 'Logging in...' : 'Login'}
+              </button>
+              {error && (
+                <div className="alert alert-danger mt-3" role="alert">
+                  {error}
+                </div>
+              )}
+            </form>
           </div>
-          <div className="mb-3">
-            <label className="form-label">Password</label>
-            <input
-              type="password"
-              className="form-control"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete='new-password'
-              required
-            />
-          </div>
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-          {error && (
-            <div className="alert alert-danger mt-3" role="alert">
-              {error}
-            </div>
-          )}
-        </form>
+        </div>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-light text-center text-muted py-3">
+        &copy; 2025 Employee Leave Management System. All rights reserved.
+      </footer>
     </div>
   );
 };
