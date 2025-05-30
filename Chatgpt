@@ -1,75 +1,68 @@
-import { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { login } from '../redux/actions/authActions';
+import React, { useState } from "react";
 
-const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const dispatch = useDispatch();
+const AddEmployeeForm = () => {
+  const [formData, setFormData] = useState({
+    empId: "",
+    firstName: "",
+    lastName: "",
+    gender: "",
+    email: "",
+    mobile: "",
+    country: "",
+    state: "",
+    city: "",
+    dob: "",
+    doj: "",
+    address: "",
+    password: "",
+    confirmPassword: "",
+    photo: null,
+  });
 
-  const handleSubmit = async (e) => {
+  const handleChange = (e) => {
+    const { name, value, type, files } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "file" ? files[0] : value,
+    }));
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      await dispatch(login(email, password));
-      setLoading(false);
-    } catch (err) {
-      setLoading(false);
-      setError('Invalid username or password');
-    }
+    console.log("Form submitted:", formData);
+    // Add API submission logic here
   };
 
   return (
-    <div
-      style={{
-        height: '100vh',
-        width: '100vw',
-        background: 'linear-gradient(to right, #74ebd5, #ACB6E5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        margin: 0,
-        padding: 0,
-      }}
-    >
-      <div className="card shadow-lg p-4 rounded-4" style={{ width: '100%', maxWidth: '400px' }}>
-        <h4 className="text-center text-primary mb-4">Login</h4>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label className="form-label">Email</label>
-            <input
-              type="email"
-              className="form-control"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Password</label>
-            <input
-              type="password"
-              className="form-control"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <button type="submit" className="btn btn-primary w-100" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-          {error && (
-            <div className="alert alert-danger mt-3" role="alert">
-              {error}
-            </div>
-          )}
-        </form>
-      </div>
+    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
+      <h2 className="text-2xl font-semibold mb-4 text-center">Add Employee</h2>
+      <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+        <input type="text" name="empId" placeholder="Emp ID" className="input" onChange={handleChange} />
+        <input type="text" name="firstName" placeholder="First Name" className="input" onChange={handleChange} />
+        <input type="text" name="lastName" placeholder="Last Name" className="input" onChange={handleChange} />
+        <select name="gender" className="input" onChange={handleChange}>
+          <option value="">Select Gender</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+        </select>
+        <input type="email" name="email" placeholder="Email ID" className="input" onChange={handleChange} />
+        <input type="text" name="mobile" placeholder="Mobile No" className="input" onChange={handleChange} />
+        <input type="text" name="country" placeholder="Country" className="input" onChange={handleChange} />
+        <input type="text" name="state" placeholder="State" className="input" onChange={handleChange} />
+        <input type="text" name="city" placeholder="City" className="input" onChange={handleChange} />
+        <input type="date" name="dob" className="input" onChange={handleChange} />
+        <input type="date" name="doj" className="input" onChange={handleChange} />
+        <input type="text" name="address" placeholder="Address" className="input col-span-2" onChange={handleChange} />
+        <input type="file" name="photo" className="input col-span-2" onChange={handleChange} />
+        <input type="password" name="password" placeholder="Password" className="input" onChange={handleChange} />
+        <input type="password" name="confirmPassword" placeholder="Confirm Password" className="input" onChange={handleChange} />
+
+        <button type="submit" className="col-span-2 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
+          Submit
+        </button>
+      </form>
     </div>
   );
 };
 
-export default Login;
+export default AddEmployeeForm;
