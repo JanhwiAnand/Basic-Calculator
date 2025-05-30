@@ -1,149 +1,106 @@
+// Updated AddEmployee component with full validations
 import React, { useState } from 'react';
-import '../css/AddEmployee.css'
-import {getToken} from '../redux/selectors'
+import '../css/AddEmployee.css';
 import { useDispatch, useSelector } from 'react-redux';
-
+import { getToken } from '../redux/selectors';
 import { addUser } from '../redux/actions/userActions';
+import { Eye, EyeOff } from 'lucide-react';
 
-const departments = ['HR', 'Development', 'Marketing', 'Finance', 'Production', 'Devops', ''];
-
+const departments = ['HR', 'Development', 'Marketing', 'Finance', 'Production', 'Devops'];
 const states = ['Karnataka', 'Maharashtra', 'Delhi', 'Tamil Nadu'];
 
-
 const AddEmployee = () => {
-const dispatch = useDispatch();
-const token = useSelector(getToken);
+  const dispatch = useDispatch();
+  const token = useSelector(getToken);
+
   const [employee, setEmployee] = useState({
-
     email: '',
-
     firstName: '',
-
     lastName: '',
-
     department: '',
-
     mobile: '',
-
     country: '',
-
     state: '',
-
     city: '',
-
     dateOfJoining: '',
-
     photo: '',
-
     address: '',
-
     password: '',
-
     confirmPassword: '',
-
+    role: 'EMPLOYEE'
   });
 
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
+  const [addUserLoading, setAddUserLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [success, setSuccess] = useState('');
+  const validateField = (name, value) => {
+    let error = '';
+    switch (name) {
+      case 'email':
+        if (!value.endsWith('@infinite.com') || value.length < 25 || value.length > 100) {
+          error = 'Email must end with @infinite.com and be 25-100 characters.';
+        }
+        break;
+      case 'mobile':
+        if (!/^\d{1,12}$/.test(value)) {
+          error = 'Mobile number must be up to 12 digits only.';
+        }
+        break;
+      case 'firstName':
+      case 'lastName':
+        if (!/^[a-zA-Z]+$/.test(value)) {
+          error = 'Name must contain only letters.';
+        }
+        break;
+      case 'password':
+        if (value.length < 6) error = 'Password must be at least 6 characters.';
+        break;
+      case 'confirmPassword':
+        if (value !== employee.password) error = 'Passwords do not match.';
+        break;
+      default:
+        if (!value.trim()) error = 'This field is required.';
+    }
+    setErrors(prev => ({ ...prev, [name]: error }));
+  };
 
   const handleChange = (e) => {
-
     const { name, value } = e.target;
-
-    setEmployee({
-
-      ...employee,
-
-      [name]: value,
-
-    });
-
+    setEmployee(prev => ({ ...prev, [name]: value }));
+    validateField(name, value);
   };
 
+  const isFormValid = () => {
+    const requiredFields = Object.keys(employee);
+    let valid = true;
+    requiredFields.forEach(field => {
+      validateField(field, employee[field]);
+      if (employee[field].toString().trim() === '' || errors[field]) {
+        valid = false;
+      }
+    });
+    return valid;
+  };
 
-  const handleSubmit = (e) => {
-
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    setError('');
-
-    setSuccess('');
-
-    if (employee.password !== employee.confirmPassword) {
-
-      setError('Passwords do not match');
-
-      return;
-
-    }
-
-
-    console.log('Employee data:', employee);
-
-    setSuccess('Employee added successfully!');
-
-    setEmployee({
-
-      email: '',
-
-      firstName: '',
-
-      lastName: '',
-
-      department: '',
-
-      mobile: '',
-
-      country: '',
-
-      state: '',
-
-      city: '',
-
-      dateOfJoining: '',
-      photo: '',
-      address: '',
-      password: '',
-
-      confirmPassword: '',
-
-    });
-
-  };
-
-  const [addUserError, setAddUserError] = useState(null);
-
-  const [addUserLoading, setAddUserLoading] = useState(false);
-
-  const handleAddUser = async () => {
-
-    setAddUserError(null);
-
+    if (!isFormValid()) return;
     setAddUserLoading(true);
-
     try {
-
       await dispatch(addUser(employee, token));
-
-      alert('User added successfully');
-
-      setEmployee({ email: '', password: '', role: 'EMPLOYEE' });
-
+      alert('User added successfully!');
+      setEmployee({
+        email: '', firstName: '', lastName: '', department: '', mobile: '', country: '',
+        state: '', city: '', dateOfJoining: '', photo: '', address: '', password: '', confirmPassword: '', role: 'EMPLOYEE'
+      });
+      setErrors({});
     } catch (error) {
-
-      const message = error.message || 'Failed to add user';
-
-      console.error('Error adding user:', message);
-
-      setAddUserError(message);
-
+      alert(error.message || 'Failed to add user');
     } finally {
-
       setAddUserLoading(false);
-
     }
-
   };
 
   const today = new Date().toISOString().split('T')[0];
@@ -152,34 +109,35 @@ const token = useSelector(getToken);
     <div className="container mt-5 mb-5">
       <div className="card shadow-lg p-4 rounded-4">
         <h3 className="text-center mb-4">Add Employee</h3>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="row g-3">
             <div className="col-md-6">
               <label className="form-label">Email ID</label>
               <input type="email" className="form-control" name="email" value={employee.email} onChange={handleChange} required />
+              {errors.email && <div className="text-danger">{errors.email}</div>}
             </div>
             <div className="col-md-6">
               <label className="form-label">Mobile No</label>
               <input type="text" className="form-control" name="mobile" value={employee.mobile} onChange={handleChange} required />
+              {errors.mobile && <div className="text-danger">{errors.mobile}</div>}
             </div>
             <div className="col-md-6">
               <label className="form-label">First Name</label>
               <input type="text" className="form-control" name="firstName" value={employee.firstName} onChange={handleChange} required />
+              {errors.firstName && <div className="text-danger">{errors.firstName}</div>}
             </div>
             <div className="col-md-6">
               <label className="form-label">Last Name</label>
               <input type="text" className="form-control" name="lastName" value={employee.lastName} onChange={handleChange} required />
+              {errors.lastName && <div className="text-danger">{errors.lastName}</div>}
             </div>
             <div className="col-md-6">
               <label className="form-label">Department</label>
               <select className="form-select" name="department" value={employee.department} onChange={handleChange} required>
                 <option value="">Select Department</option>
-
-                {departments.map((dept, idx) => (
-                  <option key={idx} value={dept}>{dept}</option>
-
-                ))}
+                {departments.map((dept, idx) => <option key={idx} value={dept}>{dept}</option>)}
               </select>
+              {errors.department && <div className="text-danger">{errors.department}</div>}
             </div>
             <div className="col-md-6">
               <label className="form-label">Country</label>
@@ -189,11 +147,7 @@ const token = useSelector(getToken);
               <label className="form-label">State</label>
               <select className="form-select" name="state" value={employee.state} onChange={handleChange} required>
                 <option value="">Select State</option>
-
-                {states.map((state, idx) => (
-                  <option key={idx} value={state}>{state}</option>
-
-                ))}
+                {states.map((state, idx) => <option key={idx} value={state}>{state}</option>)}
               </select>
             </div>
             <div className="col-md-6">
@@ -202,103 +156,38 @@ const token = useSelector(getToken);
             </div>
             <div className="col-md-6">
               <label className="form-label">Date of Joining</label>
-              <input
-
-                type="date"
-                className="form-control"
-                name="dateOfJoining"
-                value={employee.dateOfJoining}
-
-                min={today}
-
-                onChange={handleChange}
-
-                required
-
-              />
+              <input type="date" className="form-control" name="dateOfJoining" value={employee.dateOfJoining} min={today} onChange={handleChange} required />
             </div>
             <div className="col-12">
               <label className="form-label">Address</label>
               <textarea className="form-control" name="address" value={employee.address} onChange={handleChange} rows="3" required></textarea>
             </div>
-            <div className="col-md-6">
+            <div className="col-md-6 position-relative">
               <label className="form-label">Password</label>
-              <input type="password" className="form-control" name="password" value={employee.password} onChange={handleChange} required />
+              <input type={showPassword ? 'text' : 'password'} className="form-control" name="password" value={employee.password} onChange={handleChange} required />
+              <span onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '15px', top: '38px', cursor: 'pointer' }}>
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </span>
+              {errors.password && <div className="text-danger">{errors.password}</div>}
             </div>
-            <div className="col-md-6">
+            <div className="col-md-6 position-relative">
               <label className="form-label">Confirm Password</label>
-              <input type="password" className="form-control" name="confirmPassword" value={employee.confirmPassword} onChange={handleChange} required />
+              <input type={showConfirmPassword ? 'text' : 'password'} className="form-control" name="confirmPassword" value={employee.confirmPassword} onChange={handleChange} required />
+              <span onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ position: 'absolute', right: '15px', top: '38px', cursor: 'pointer' }}>
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </span>
+              {errors.confirmPassword && <div className="text-danger">{errors.confirmPassword}</div>}
             </div>
           </div>
-
-          {error && <div className="alert alert-danger mt-3">{error}</div>}
-
-          {success && <div className="alert alert-success mt-3">{success}</div>}
           <div className="d-flex justify-content-center mt-4">
-            <button
-
-              type="submit"
-
-              className="btn btn-primary btn-sm"
-
-              style={{
-
-                width: '140px',
-
-                padding: '10px 20px',
-
-                fontWeight: '600',
-
-                fontSize: '16px',
-
-                borderRadius: '8px',
-
-                boxShadow: '0 4px 8px rgba(0, 123, 255, 0.4)',
-
-                transition: 'all 0.3s ease',
-
-              }}
-
-              onMouseEnter={e => {
-
-                e.currentTarget.style.backgroundColor = '#0056b3';
-
-                e.currentTarget.style.boxShadow = '0 6px 12px rgba(0, 86, 179, 0.6)';
-
-              }}
-
-              onMouseLeave={e => {
-
-                e.currentTarget.style.backgroundColor = '#0d6efd';
-
-                e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 123, 255, 0.4)';
-
-              }}
-
-              onClick={handleAddUser}
-
-              disabled={addUserLoading}
-            >
-
+            <button type="submit" className="btn btn-primary" disabled={addUserLoading}>
               {addUserLoading ? 'Adding...' : 'Add User'}
             </button>
-
-            {addUserError && (
-              <div className="alert alert-danger mt-3" role="alert">
-
-                Error: {addUserError}
-              </div>
-
-            )}
           </div>
         </form>
       </div>
     </div>
-
   );
-
 };
 
 export default AddEmployee;
-
-
