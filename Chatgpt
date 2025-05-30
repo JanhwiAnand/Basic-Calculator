@@ -1,169 +1,25 @@
-import React, { useState } from 'react';
-import './AddEmployee.css'; // optional if you want extra styling
-
-const departments = ['HR', 'Engineering', 'Marketing', 'Finance'];
-const states = ['Karnataka', 'Maharashtra', 'Delhi', 'Tamil Nadu'];
-
-const AddEmployee = () => {
-  const [employee, setEmployee] = useState({
-    email: '',
-    firstName: '',
-    lastName: '',
-    department: '',
-    mobile: '',
-    country: '',
-    state: '',
-    city: '',
-    dateOfJoining: '',
-    photo: '',
-    address: '',
-    password: '',
-    confirmPassword: '',
-  });
-
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    setEmployee({
-      ...employee,
-      [name]: files ? files[0] : value,
-    });
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    if (employee.password !== employee.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    // TODO: dispatch to backend or redux
-    console.log('Employee data:', employee);
-    setSuccess('Employee added successfully!');
-    setEmployee({
-      email: '',
-      firstName: '',
-      lastName: '',
-      department: '',
-      mobile: '',
-      country: '',
-      state: '',
-      city: '',
-      dateOfJoining: '',
-      photo: '',
-      address: '',
-      password: '',
-      confirmPassword: '',
-    });
-  };
-
-  const today = new Date().toISOString().split('T')[0];
-
-  return (
-    <div className="container mt-5 mb-5">
-      <div className="card shadow-lg p-4 rounded-4">
-        <h3 className="text-center mb-4">Add Employee</h3>
-        <form onSubmit={handleSubmit}>
-          <div className="row g-3">
-            <div className="col-md-6">
-              <label className="form-label">Email ID</label>
-              <input type="email" className="form-control" name="email" value={employee.email} onChange={handleChange} required />
-            </div>
-
-            <div className="col-md-6">
-              <label className="form-label">Mobile No</label>
-              <input type="text" className="form-control" name="mobile" value={employee.mobile} onChange={handleChange} required />
-            </div>
-
-            <div className="col-md-6">
-              <label className="form-label">First Name</label>
-              <input type="text" className="form-control" name="firstName" value={employee.firstName} onChange={handleChange} required />
-            </div>
-
-            <div className="col-md-6">
-              <label className="form-label">Last Name</label>
-              <input type="text" className="form-control" name="lastName" value={employee.lastName} onChange={handleChange} required />
-            </div>
-
-            <div className="col-md-6">
-              <label className="form-label">Department</label>
-              <select className="form-select" name="department" value={employee.department} onChange={handleChange} required>
-                <option value="">Select Department</option>
-                {departments.map((dept, idx) => (
-                  <option key={idx} value={dept}>{dept}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="col-md-6">
-              <label className="form-label">Country</label>
-              <input type="text" className="form-control" name="country" value={employee.country} onChange={handleChange} required />
-            </div>
-
-            <div className="col-md-6">
-              <label className="form-label">State</label>
-              <select className="form-select" name="state" value={employee.state} onChange={handleChange} required>
-                <option value="">Select State</option>
-                {states.map((state, idx) => (
-                  <option key={idx} value={state}>{state}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="col-md-6">
-              <label className="form-label">City</label>
-              <input type="text" className="form-control" name="city" value={employee.city} onChange={handleChange} required />
-            </div>
-
-            <div className="col-md-6">
-              <label className="form-label">Date of Joining</label>
-              <input
-                type="date"
-                className="form-control"
-                name="dateOfJoining"
-                value={employee.dateOfJoining}
-                min={today}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="col-md-6">
-              <label className="form-label">Photo Upload</label>
-              <input type="file" className="form-control" name="photo" onChange={handleChange} accept="image/*" />
-            </div>
-
-            <div className="col-12">
-              <label className="form-label">Address</label>
-              <textarea className="form-control" name="address" value={employee.address} onChange={handleChange} rows="3" required></textarea>
-            </div>
-
-            <div className="col-md-6">
-              <label className="form-label">Password</label>
-              <input type="password" className="form-control" name="password" value={employee.password} onChange={handleChange} required />
-            </div>
-
-            <div className="col-md-6">
-              <label className="form-label">Confirm Password</label>
-              <input type="password" className="form-control" name="confirmPassword" value={employee.confirmPassword} onChange={handleChange} required />
-            </div>
-          </div>
-
-          {error && <div className="alert alert-danger mt-3">{error}</div>}
-          {success && <div className="alert alert-success mt-3">{success}</div>}
-
-          <div className="d-grid mt-4">
-            <button type="submit" className="btn btn-primary btn-lg">Add Employee</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-export default AddEmployee;
+<div className="d-flex justify-content-center mt-4">
+  <button
+    type="submit"
+    className="btn btn-primary btn-sm"
+    style={{
+      width: '140px',
+      padding: '10px 20px',
+      fontWeight: '600',
+      fontSize: '16px',
+      borderRadius: '8px',
+      boxShadow: '0 4px 8px rgba(0, 123, 255, 0.4)',
+      transition: 'all 0.3s ease',
+    }}
+    onMouseEnter={e => {
+      e.currentTarget.style.backgroundColor = '#0056b3';
+      e.currentTarget.style.boxShadow = '0 6px 12px rgba(0, 86, 179, 0.6)';
+    }}
+    onMouseLeave={e => {
+      e.currentTarget.style.backgroundColor = '#0d6efd';
+      e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 123, 255, 0.4)';
+    }}
+  >
+    Add
+  </button>
+</div>
