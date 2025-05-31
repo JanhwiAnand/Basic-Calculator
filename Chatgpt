@@ -1,231 +1,58 @@
-export const getToken = state => state.auth.token;
-export const getUser = state => state.auth.user;
-export const getAuthError = state => state.auth.error;
-export const getAuthLoading = state => state.auth.loading;
-export const getCurrentLeaves = state => state.leaves.currentLeaves;
-export const getAppliedLeaves = state => state.leaves.appliedLeaves;
-export const getLeaveHistory = state => state.leaves.leaveHistory || { content: [] };
-export const getLeaveBalances = state => state.leaves.leaveBalances;
-export const getLeaveError = state => state.leaves.error;
-export const getLeaveLoading = state => state.leaves.loading;
-export const getPendingLeaves = state => state.leaves.pendingLeaves;
-export const getAppliedLeavesByDateRange = state => state.leaves.appliedLeavesByDateRange || [];
+//navbar
+import { NavLink } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { getUser } from '../redux/selectors';
+import Logout from './Logout';
 
-const initialState = {
-  appliedLeaves: [],
-  currentLeaves: [],
-  pendingLeaves: [],
-  appliedLeavesByDateRange: [], // Add this
-  leaveHistory: { content: [] },
-  leaveBalances: { SICK: 10, CASUAL: 15, PAID: 20 },
-  loading: false,
-  error: null,
+const Navbar = () => {
+    const user = useSelector(getUser);
+
+    return (
+        <nav className="navbar navbar-expand-lg navbar-light bg-light">
+            <div className="container-fluid">
+                <span className="navbar-brand">EMS</span>
+                <button
+                    className="navbar-toggler"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#navbarNav"
+                    aria-controls="navbarNav"
+                    aria-expanded="false"
+                    aria-label="Toggle navigation"
+                >
+                    <span className="navbar-toggler-icon"></span>
+                </button>
+                <div className="collapse navbar-collapse" id="navbarNav">
+                    <ul className="navbar-nav me-auto">
+                        {user?.role === 'ADMIN' && (
+                            <li className="nav-item">
+                                <NavLink className="nav-link" to="/add-employee">Add Employee</NavLink>
+                            </li>
+                        )}
+                        {user?.role === 'EMPLOYEE' && (
+                            <li className="nav-item">
+                                <NavLink className="nav-link" to="/apply-leave">Apply Leave</NavLink>
+                            </li>
+                        )}
+                        {user?.role === 'ADMIN' && (
+                            <li className="nav-item">
+                                <NavLink className="nav-link" to="/approval">Approval</NavLink>
+                            </li>
+                        )}
+                        {user?.role === 'EMPLOYEE' && (
+                            <li className="nav-item">
+                                <NavLink className="nav-link" to="/history">History</NavLink>
+                            </li>
+                        )}
+                        <li className="nav-item">
+                            <NavLink className="nav-link" to="/profile">Profile</NavLink>
+                        </li>
+                    </ul>
+                    <Logout />
+                </div>
+            </div>
+        </nav>
+    );
 };
 
-const leaveReducer = (state = initialState, action) => {
-  switch (action.type) {
-    case 'FETCH_LEAVES_REQUEST':
-    case 'APPLY_LEAVE_REQUEST':
-    case 'FETCH_HISTORY_REQUEST':
-    case 'CANCEL_LEAVE_REQUEST':
-    case 'APPROVE_LEAVE_REQUEST':
-    case 'DECLINE_LEAVE_REQUEST':
-    case 'FETCH_PENDING_LEAVES_REQUEST':
-    case 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_REQUEST': // Add this
-      return { ...state, loading: true, error: null };
-
-    case 'FETCH_LEAVES_SUCCESS':
-      return { ...state, currentLeaves: action.payload, loading: false };
-
-    case 'APPLY_LEAVE_SUCCESS':
-      return { ...state, appliedLeaves: [...state.appliedLeaves, action.payload], loading: false };
-
-    case 'FETCH_HISTORY_SUCCESS':
-      return { ...state, leaveHistory: action.payload || { content: [] }, loading: false };
-
-    case 'CANCEL_LEAVE_SUCCESS':
-      return {
-        ...state,
-        appliedLeaves: state.appliedLeaves.filter(leave => leave.id !== action.payload),
-        currentLeaves: state.currentLeaves.filter(leave => leave.id !== action.payload),
-        loading: false,
-      };
-
-    case 'APPROVE_LEAVE_SUCCESS':
-    case 'DECLINE_LEAVE_SUCCESS':
-      return {
-        ...state,
-        currentLeaves: state.currentLeaves.filter(leave => leave.id !== action.payload.id),
-        pendingLeaves: state.pendingLeaves.filter(leave => leave.id !== action.payload.id),
-        loading: false,
-      };
-
-    case 'FETCH_PENDING_LEAVES_SUCCESS':
-      return { ...state, pendingLeaves: action.payload, loading: false };
-
-    case 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_SUCCESS': // Add this
-      return { ...state, appliedLeavesByDateRange: action.payload, loading: false };
-
-    case 'FETCH_LEAVES_FAILURE':
-    case 'APPLY_LEAVE_FAILURE':
-    case 'FETCH_HISTORY_FAILURE':
-    case 'CANCEL_LEAVE_FAILURE':
-    case 'APPROVE_LEAVE_FAILURE':
-    case 'DECLINE_LEAVE_FAILURE':
-    case 'FETCH_PENDING_LEAVES_FAILURE':
-    case 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_FAILURE': // Add this
-      return { ...state, error: action.payload, loading: false };
-
-    default:
-      return state;
-  }
-};
-
-export default leaveReducer;
-
-import axios from 'axios';
-
-export const APPLY_LEAVE_REQUEST = 'APPLY_LEAVE_REQUEST';
-export const APPLY_LEAVE_SUCCESS = 'APPLY_LEAVE_SUCCESS';
-export const APPLY_LEAVE_FAILURE = 'APPLY_LEAVE_FAILURE';
-export const FETCH_PENDING_LEAVES_REQUEST = 'FETCH_PENDING_LEAVES_REQUEST';
-export const FETCH_PENDING_LEAVES_SUCCESS = 'FETCH_PENDING_LEAVES_SUCCESS';
-export const FETCH_PENDING_LEAVES_FAILURE = 'FETCH_PENDING_LEAVES_FAILURE';
-export const FETCH_LEAVES_REQUEST = 'FETCH_LEAVES_REQUEST';
-export const FETCH_LEAVES_SUCCESS = 'FETCH_LEAVES_SUCCESS';
-export const FETCH_LEAVES_FAILURE = 'FETCH_LEAVES_FAILURE';
-export const FETCH_HISTORY_REQUEST = 'FETCH_HISTORY_REQUEST';
-export const FETCH_HISTORY_SUCCESS = 'FETCH_HISTORY_SUCCESS';
-export const FETCH_HISTORY_FAILURE = 'FETCH_HISTORY_FAILURE';
-export const CANCEL_LEAVE_REQUEST = 'CANCEL_LEAVE_REQUEST';
-export const CANCEL_LEAVE_SUCCESS = 'CANCEL_LEAVE_SUCCESS';
-export const CANCEL_LEAVE_FAILURE = 'CANCEL_LEAVE_FAILURE';
-export const APPROVE_LEAVE_REQUEST = 'APPROVE_LEAVE_REQUEST';
-export const APPROVE_LEAVE_SUCCESS = 'APPROVE_LEAVE_SUCCESS';
-export const APPROVE_LEAVE_FAILURE = 'APPROVE_LEAVE_FAILURE';
-export const DECLINE_LEAVE_REQUEST = 'DECLINE_LEAVE_REQUEST';
-export const DECLINE_LEAVE_SUCCESS = 'DECLINE_LEAVE_SUCCESS';
-export const DECLINE_LEAVE_FAILURE = 'DECLINE_LEAVE_FAILURE';
-export const FETCH_APPLIED_LEAVES_BY_DATE_RANGE_REQUEST = 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_REQUEST';
-export const FETCH_APPLIED_LEAVES_BY_DATE_RANGE_SUCCESS = 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_SUCCESS';
-export const FETCH_APPLIED_LEAVES_BY_DATE_RANGE_FAILURE = 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_FAILURE';
-
-export const applyLeave = (leaveData, token) => async dispatch => {
-  dispatch({ type: APPLY_LEAVE_REQUEST });
-  try {
-    const response = await axios.post('http://localhost:5000/api/leaves/apply', leaveData, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    dispatch({ type: APPLY_LEAVE_SUCCESS, payload: response.data });
-  } catch (error) {
-    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to apply leave';
-    dispatch({ type: APPLY_LEAVE_FAILURE, payload: message });
-    throw error;
-  }
-};
-
-export const fetchPendingLeaves = (token, page = 0, size = 10) => async dispatch => {
-  dispatch({ type: FETCH_PENDING_LEAVES_REQUEST });
-  try {
-    const response = await axios.get('http://localhost:5000/api/leaves/pending', {
-      params: { page, size },
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    dispatch({ type: FETCH_PENDING_LEAVES_SUCCESS, payload: response.data.content });
-  } catch (error) {
-    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to fetch pending leaves';
-    dispatch({ type: FETCH_PENDING_LEAVES_FAILURE, payload: message });
-    throw error;
-  }
-};
-
-export const fetchCurrentLeaves = (token, page = 0, size = 10) => async dispatch => {
-  dispatch({ type: FETCH_LEAVES_REQUEST });
-  try {
-    const response = await axios.get('http://localhost:5000/api/leaves/current', {
-      params: { page, size },
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    dispatch({ type: FETCH_LEAVES_SUCCESS, payload: response.data.content });
-  } catch (error) {
-    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to fetch leaves';
-    dispatch({ type: FETCH_LEAVES_FAILURE, payload: message });
-    throw error;
-  }
-};
-
-export const fetchLeaveHistory = (token, year, page = 0, size = 10) => async dispatch => {
-  dispatch({ type: FETCH_HISTORY_REQUEST });
-  try {
-    const response = await axios.get('http://localhost:5000/api/leaves/history', {
-      params: { year, page, size },
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    dispatch({ type: FETCH_HISTORY_SUCCESS, payload: response.data });
-  } catch (error) {
-    const message = error.response?.data?.error || error.message || 'Failed to fetch history';
-    dispatch({ type: FETCH_HISTORY_FAILURE, payload: message });
-    throw error;
-  }
-};
-
-export const cancelLeave = (leaveId, token) => async dispatch => {
-  dispatch({ type: CANCEL_LEAVE_REQUEST });
-  try {
-    await axios.delete(`http://localhost:5000/api/leaves/${leaveId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    dispatch({ type: CANCEL_LEAVE_SUCCESS, payload: leaveId });
-  } catch (error) {
-    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to cancel leave';
-    dispatch({ type: CANCEL_LEAVE_FAILURE, payload: message });
-    throw error;
-  }
-};
-
-export const approveLeave = (leaveId, token) => async dispatch => {
-  dispatch({ type: APPROVE_LEAVE_REQUEST });
-  try {
-    await axios.put(`http://localhost:5000/api/leaves/approve/${leaveId}`, null, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    dispatch({ type: APPROVE_LEAVE_SUCCESS, payload: { id: leaveId } });
-    dispatch(fetchPendingLeaves(token));
-  } catch (error) {
-    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to approve leave';
-    dispatch({ type: APPROVE_LEAVE_FAILURE, payload: message });
-    dispatch(fetchPendingLeaves(token));
-    throw error;
-  }
-};
-
-export const declineLeave = (leaveId, reason, token) => async dispatch => {
-  dispatch({ type: DECLINE_LEAVE_REQUEST });
-  try {
-    await axios.put(`http://localhost:5000/api/leaves/reject/${leaveId}`, { declineReason: reason }, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    dispatch({ type: DECLINE_LEAVE_SUCCESS, payload: { id: leaveId } });
-    dispatch(fetchPendingLeaves(token));
-  } catch (error) {
-    const message = error.response?.data?.errors?.[0] || error.response?.data?.message || error.message || 'Failed to decline leave';
-    dispatch({ type: DECLINE_LEAVE_FAILURE, payload: message });
-    dispatch(fetchPendingLeaves(token));
-    throw error;
-  }
-};
-
-export const fetchAppliedLeavesByDateRange = (startDate, endDate, token) => async dispatch => {
-  dispatch({ type: FETCH_APPLIED_LEAVES_BY_DATE_RANGE_REQUEST });
-  try {
-    const response = await axios.get('http://localhost:5000/api/leaves/applied', {
-      params: { startDate, endDate },
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    dispatch({ type: FETCH_APPLIED_LEAVES_BY_DATE_RANGE_SUCCESS, payload: response.data });
-  } catch (error) {
-    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to fetch applied leaves';
-    dispatch({ type: FETCH_APPLIED_LEAVES_BY_DATE_RANGE_FAILURE, payload: message });
-    throw error;
-  }
-};
+export default Navbar;
