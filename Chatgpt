@@ -56,4 +56,5 @@ module.exports = {
   getLeaveHistory,
   getLeavesByDateRange, // Add this
 };
-
+Module Warning (from ./node_modules/source-map-loader/dist/cjs.js):
+Failed to parse source map from 'D:\employeeLeaveManagement\frontend\node_modules\react-datepicker\src\year_dropdown_options.tsx' file: Error: ENOENT: no such file or directory, open 'D:\employeeLeaveManagement\frontend\node_modules\react-datepicker\src\year_dropdown_options.tsx'
