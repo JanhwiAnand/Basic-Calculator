@@ -1,4 +1,3 @@
-//navbar
 import { NavLink } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { getUser } from '../redux/selectors';
@@ -25,24 +24,27 @@ const Navbar = () => {
                 <div className="collapse navbar-collapse" id="navbarNav">
                     <ul className="navbar-nav me-auto">
                         {user?.role === 'ADMIN' && (
-                            <li className="nav-item">
-                                <NavLink className="nav-link" to="/add-employee">Add Employee</NavLink>
-                            </li>
+                            <>
+                                <li className="nav-item">
+                                    <NavLink className="nav-link" to="/dashboard">Dashboard</NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink className="nav-link" to="/add-employee">Add Employee</NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink className="nav-link" to="/approval">Approval</NavLink>
+                                </li>
+                            </>
                         )}
                         {user?.role === 'EMPLOYEE' && (
-                            <li className="nav-item">
-                                <NavLink className="nav-link" to="/apply-leave">Apply Leave</NavLink>
-                            </li>
-                        )}
-                        {user?.role === 'ADMIN' && (
-                            <li className="nav-item">
-                                <NavLink className="nav-link" to="/approval">Approval</NavLink>
-                            </li>
-                        )}
-                        {user?.role === 'EMPLOYEE' && (
-                            <li className="nav-item">
-                                <NavLink className="nav-link" to="/history">History</NavLink>
-                            </li>
+                            <>
+                                <li className="nav-item">
+                                    <NavLink className="nav-link" to="/apply-leave">Apply Leave</NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink className="nav-link" to="/history">History</NavLink>
+                                </li>
+                            </>
                         )}
                         <li className="nav-item">
                             <NavLink className="nav-link" to="/profile">Profile</NavLink>
