@@ -1,60 +1,4 @@
-import { NavLink } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { getUser } from '../redux/selectors';
-import Logout from './Logout';
-
-const Navbar = () => {
-    const user = useSelector(getUser);
-
-    return (
-        <nav className="navbar navbar-expand-lg navbar-light bg-light">
-            <div className="container-fluid">
-                <span className="navbar-brand">EMS</span>
-                <button
-                    className="navbar-toggler"
-                    type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#navbarNav"
-                    aria-controls="navbarNav"
-                    aria-expanded="false"
-                    aria-label="Toggle navigation"
-                >
-                    <span className="navbar-toggler-icon"></span>
-                </button>
-                <div className="collapse navbar-collapse" id="navbarNav">
-                    <ul className="navbar-nav me-auto">
-                        {user?.role === 'ADMIN' && (
-                            <li className="nav-item">
-                                <NavLink className="nav-link" to="/add-employee">Add Employee</NavLink>
-                            </li>
-                        )}
-                        {user?.role === 'EMPLOYEE' && (
-                            <li className="nav-item">
-                                <NavLink className="nav-link" to="/apply-leave">Apply Leave</NavLink>
-                            </li>
-                        )}
-                        {user?.role === 'ADMIN' && (
-                            <li className="nav-item">
-                                <NavLink className="nav-link" to="/approval">Approval</NavLink>
-                            </li>
-                        )}
-                        {user?.role === 'EMPLOYEE' && (
-                            <li className="nav-item">
-                                <NavLink className="nav-link" to="/history">History</NavLink>
-                            </li>
-                        )}
-                        <li className="nav-item">
-                            <NavLink className="nav-link" to="/profile">Profile</NavLink>
-                        </li>
-                    </ul>
-                    <Logout />
-                </div>
-            </div>
-        </nav>
-    );
-};
-
-export default Navbar;import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import Login from './components/Login';
 import Navbar from './components/Navbar';
@@ -68,91 +12,61 @@ import './styles.css';
 import AddEmployeeForm from './components/AddUser';
 
 function App() {
-  const token = useSelector(getToken); // Check if user is logged in
-  const user = useSelector(getUser);   // Get user details (e.g., role)
+  const token = useSelector(getToken);
+  const user = useSelector(getUser);
 
   const isAdmin = user?.role === 'ADMIN';
+  const isEmployee = user?.role === 'EMPLOYEE';
 
   return (
-    <div style={{height:'100vh',width:'100vw'}}>
-    <Router>
-      {/* Show Navbar only if user is logged in */}
-      {token && <Navbar />}
-      <div className="container mt-3">
-        <Routes>
-          {/* Login Route: Redirect to apply-leave if already logged in */}
-          <Route
-            path="/login"
-            element={
-              token ? (
-                <Navigate to="/apply-leave" />
-              ) : (
-                <ErrorBoundary>
-                  <Login />
-                </ErrorBoundary>
-              )
-            }
-          />
-          {/* Apply Leave Route: Accessible to all logged-in users, but UI will differ based on role */}
-          <Route
-            path="/apply-leave"
-            element={
-              token ? (
-                <ErrorBoundary>
-                  <ApplyLeave />
-                </ErrorBoundary>
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
-          />
-          {/* Approval Route: Accessible only to Admins */}
-          <Route
-            path="/approval"
-            element={
-              token && isAdmin ? (
-                <ErrorBoundary>
-                  <Approval />
-                </ErrorBoundary>
-              ) : (
-                <Navigate to={token ? "/apply-leave" : "/login"} />
-              )
-            }
-          />
-          {/* History Route: Accessible to all logged-in users */}
-          <Route
-            path="/history"
-            element={
-              token ? (
-                <ErrorBoundary>
-                  <History />
-                </ErrorBoundary>
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
-          />
-          {/* Profile Route: Accessible to all logged-in users */}
-          <Route
-            path="/profile"
-            element={
-              token ? (
-                <ErrorBoundary>
-                  <Profile />
-                </ErrorBoundary>
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
-          />
-          {/* Default Route: Redirect based on login status */}
-          <Route path="/" element={<Navigate to={token ? "/apply-leave" : "/login"} />} />
-        </Routes>
-      </div>
-    </Router>
-  </div>
-  
+    <div style={{ height: '100vh', width: '100vw' }}>
+      <Router>
+        {token && <Navbar />}
+        <div className="container mt-3">
+          <Routes>
+            {/* Login */}
+            <Route
+              path="/login"
+              element={
+                token ? (
+                  <Navigate to={isAdmin ? "/add-employee" : "/apply-leave"} />
+                ) : (
+                  <ErrorBoundary><Login /></ErrorBoundary>
+                )
+              }
+            />
+
+            {/* Admin-only routes */}
+            {isAdmin && (
+              <>
+                <Route path="/add-employee" element={<ErrorBoundary><AddEmployeeForm /></ErrorBoundary>} />
+                <Route path="/approval" element={<ErrorBoundary><Approval /></ErrorBoundary>} />
+              </>
+            )}
+
+            {/* Employee-only routes */}
+            {isEmployee && (
+              <Route path="/apply-leave" element={<ErrorBoundary><ApplyLeave /></ErrorBoundary>} />
+            )}
+
+            {/* Common routes */}
+            {token && (
+              <>
+                <Route path="/history" element={<ErrorBoundary><History /></ErrorBoundary>} />
+                <Route path="/profile" element={<ErrorBoundary><Profile /></ErrorBoundary>} />
+              </>
+            )}
+
+            {/* Default route */}
+            <Route path="/" element={<Navigate to={token ? (isAdmin ? "/add-employee" : "/apply-leave") : "/login"} />} />
+
+            {/* Catch-all fallback */}
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </div>
+      </Router>
+    </div>
   );
 }
 
-export default App; i want to add a adduser route such that when admin logins then for him apply leave will not be present, but add user, approval and all are present, but if an employee logins then for him add user should not be present, but the apply leave will be there, approvalalso not there for employee, so edit the code where required
+export default App;
