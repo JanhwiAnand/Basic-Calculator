@@ -1,23 +1,189 @@
-{user?.role === 'ADMIN' && (
-  <li className="nav-item">
-    <NavLink className="nav-link" to="/add-employee">Add Employee</NavLink>
-  </li>
-)}
-{user?.role === 'EMPLOYEE' && (
-  <li className="nav-item">
-    <NavLink className="nav-link" to="/apply-leave">Apply Leave</NavLink>
-  </li>
-)}
+import React, { useState } from 'react';
+import '../css/AddEmployee.css';
+import { useDispatch, useSelector } from 'react-redux';
+import { getToken } from '../redux/selectors';
+import { addUser } from '../redux/actions/userActions';
+import { Eye, EyeOff } from 'lucide-react';
 
-<Route
-  path="/add-employee"
-  element={
-    token && isAdmin ? (
-      <ErrorBoundary>
-        <AddEmployeeForm />
-      </ErrorBoundary>
-    ) : (
-      <Navigate to={token ? "/apply-leave" : "/login"} />
-    )
-  }
-/>
+const departments = ['HR', 'Development', 'Marketing', 'Finance', 'Production', 'Devops'];
+const states = ['Karnataka', 'Maharashtra', 'Delhi', 'Tamil Nadu'];
+
+const AddEmployee = () => {
+  const dispatch = useDispatch();
+  const token = useSelector(getToken);
+
+  const [employee, setEmployee] = useState({
+    email: '',
+    firstName: '',
+    lastName: '',
+    department: '',
+    mobile: '',
+    country: '',
+    state: '',
+    city: '',
+    dateOfJoining: '',
+    photo: '',
+    password: '',
+    confirmPassword: '',
+    role: 'EMPLOYEE'
+  });
+
+  const [errors, setErrors] = useState({});
+  const [addUserLoading, setAddUserLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const validateField = (name, value) => {
+    let error = '';
+    switch (name) {
+      case 'email':
+        if (!value.endsWith('@infinite.com') || value.length >100) {
+          error = 'Email must end with @infinite.com';
+        }
+        break;
+      case 'mobile':
+        if (!/^\d{1,12}$/.test(value)) {
+          error = 'Mobile number must be up to 12 digits only.';
+        }
+        break;
+      case 'firstName':
+      case 'lastName':
+        if (!/^[a-zA-Z]+$/.test(value)) {
+          error = 'Name must contain only letters.';
+        }
+        break;
+      case 'password':
+        if (value.length < 6) error = 'Password must be at least 6 characters.';
+        break;
+      case 'confirmPassword':
+        if (value !== employee.password) error = 'Passwords do not match.';
+        break;
+      default:
+        if (!value.trim()) error = 'This field is required.';
+    }
+    setErrors(prev => ({ ...prev, [name]: error }));
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setEmployee(prev => ({ ...prev, [name]: value }));
+    validateField(name, value);
+  };
+
+  const isFormValid = () => {
+    const requiredFields = Object.keys(employee);
+    let valid = true;
+    requiredFields.forEach(field => {
+      validateField(field, employee[field]);
+      if (employee[field].toString().trim() === '' || errors[field]) {
+        valid = false;
+      }
+    });
+    return valid;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    console.log("clicked");
+    if (!isFormValid()) return;
+    console.assertlog("reached")
+    setAddUserLoading(true);
+    try {
+      await dispatch(addUser(employee, token));
+      alert('User added successfully!');
+      setEmployee({
+        email: '', firstName: '', lastName: '', department: '', mobile: '', country: '',
+        state: '', city: '', dateOfJoining: '', photo: '', password: '', confirmPassword: '', role: 'EMPLOYEE'
+      });
+      setErrors({});
+    } catch (error) {
+      alert(error.message || 'Failed to add user');
+    } finally {
+      setAddUserLoading(false);
+    }
+  };
+
+  const today = new Date().toISOString().split('T')[0];
+
+  return (
+    <div className="container mt-5 mb-5">
+      <div className="card shadow-lg p-4 rounded-4">
+        <h3 className="text-center mb-4">Add Employee</h3>
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label className="form-label">Email ID</label>
+              <input type="email" className="form-control" name="email" value={employee.email} onChange={handleChange} required />
+              {errors.email && <div className="text-danger">{errors.email}</div>}
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">Mobile No</label>
+              <input type="text" className="form-control" name="mobile" value={employee.mobile} onChange={handleChange} required />
+              {errors.mobile && <div className="text-danger">{errors.mobile}</div>}
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">First Name</label>
+              <input type="text" className="form-control" name="firstName" value={employee.firstName} onChange={handleChange} required />
+              {errors.firstName && <div className="text-danger">{errors.firstName}</div>}
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">Last Name</label>
+              <input type="text" className="form-control" name="lastName" value={employee.lastName} onChange={handleChange} required />
+              {errors.lastName && <div className="text-danger">{errors.lastName}</div>}
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">Department</label>
+              <select className="form-select" name="department" value={employee.department} onChange={handleChange} required>
+                <option value="">Select Department</option>
+                {departments.map((dept, idx) => <option key={idx} value={dept}>{dept}</option>)}
+              </select>
+              {errors.department && <div className="text-danger">{errors.department}</div>}
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">Country</label>
+              <input type="text" className="form-control" name="country" value={employee.country} onChange={handleChange} required />
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">State</label>
+              <select className="form-select" name="state" value={employee.state} onChange={handleChange} required>
+                <option value="">Select State</option>
+                {states.map((state, idx) => <option key={idx} value={state}>{state}</option>)}
+              </select>
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">City</label>
+              <input type="text" className="form-control" name="city" value={employee.city} onChange={handleChange} required />
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">Date of Joining</label>
+              <input type="date" className="form-control" name="dateOfJoining" value={employee.dateOfJoining} min={today} onChange={handleChange} required />
+            </div>
+            <div className="col-md-6 position-relative">
+              <label className="form-label">Password</label>
+              <input type={showPassword ? 'text' : 'password'} className="form-control" name="password" value={employee.password} onChange={handleChange} required />
+              <span onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '15px', top: '38px', cursor: 'pointer' }}>
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </span>
+              {errors.password && <div className="text-danger">{errors.password}</div>}
+            </div>
+            <div className="col-md-6 position-relative">
+              <label className="form-label">Confirm Password</label>
+              <input type={showConfirmPassword ? 'text' : 'password'} className="form-control" name="confirmPassword" value={employee.confirmPassword} onChange={handleChange} required />
+              <span onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ position: 'absolute', right: '15px', top: '38px', cursor: 'pointer' }}>
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </span>
+              {errors.confirmPassword && <div className="text-danger">{errors.confirmPassword}</div>}
+            </div>
+          </div>
+          <div className="d-flex justify-content-center mt-4">
+            <button type="submit" className="btn btn-primary" disabled={addUserLoading}>
+              {addUserLoading ? 'Adding...' : 'Add User'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default AddEmployee;
