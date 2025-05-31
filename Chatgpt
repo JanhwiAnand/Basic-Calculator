@@ -1,219 +1,231 @@
-import { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchAppliedLeavesByDateRange, fetchPendingLeaves } from '../redux/actions/leaveActions';
-import { getToken, getUser, getAppliedLeavesByDateRange, getPendingLeaves, getLeaveLoading, getLeaveError } from '../redux/selectors';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import { format } from 'date-fns';
-import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+export const getToken = state => state.auth.token;
+export const getUser = state => state.auth.user;
+export const getAuthError = state => state.auth.error;
+export const getAuthLoading = state => state.auth.loading;
+export const getCurrentLeaves = state => state.leaves.currentLeaves;
+export const getAppliedLeaves = state => state.leaves.appliedLeaves;
+export const getLeaveHistory = state => state.leaves.leaveHistory || { content: [] };
+export const getLeaveBalances = state => state.leaves.leaveBalances;
+export const getLeaveError = state => state.leaves.error;
+export const getLeaveLoading = state => state.leaves.loading;
+export const getPendingLeaves = state => state.leaves.pendingLeaves;
+export const getAppliedLeavesByDateRange = state => state.leaves.appliedLeavesByDateRange || [];
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
-
-const Dashboard = () => {
-  const dispatch = useDispatch();
-  const token = useSelector(getToken);
-  const user = useSelector(getUser);
-  const appliedLeaves = useSelector(getAppliedLeavesByDateRange);
-  const pendingLeaves = useSelector(getPendingLeaves);
-  const loading = useSelector(getLeaveLoading);
-  const error = useSelector(getLeaveError);
-
-  const [dateRange, setDateRange] = useState(() => {
-    const end = new Date();
-    const start = new Date();
-    start.setMonth(end.getMonth() - 1);
-    return [start, end];
-  });
-  const [startDate, endDate] = dateRange;
-
-  useEffect(() => {
-    if (token && user?.role === 'ADMIN') {
-      const formattedStartDate = startDate ? format(startDate, 'yyyy-MM-dd') : '';
-      const formattedEndDate = endDate ? format(endDate, 'yyyy-MM-dd') : '';
-      dispatch(fetchAppliedLeavesByDateRange(formattedStartDate, formattedEndDate, token));
-      dispatch(fetchPendingLeaves(token));
-    }
-  }, [dispatch, token, user?.role, startDate, endDate]);
-
-  const categoryCounts = appliedLeaves.reduce((acc, leave) => {
-    acc[leave.category] = (acc[leave.category] || 0) + 1;
-    return acc;
-  }, {});
-  const chartData = {
-    labels: Object.keys(categoryCounts),
-    datasets: [
-      {
-        label: 'Leave Applications by Category',
-        data: Object.values(categoryCounts),
-        backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1'],
-        borderColor: ['#FF6B6B', '#4ECDC4', '#45B7D1'],
-        borderWidth: 1,
-      },
-    ],
-  };
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: { position: 'top' },
-      title: { display: true, text: 'Leave Applications by Category' },
-    },
-  };
-
-  return (
-    <div className="container-fluid min-vh-100 bg-light">
-      <header className="bg-primary text-white p-4 shadow mb-4">
-        <div className="container">
-          <div className="d-flex justify-content-between align-items-center">
-            <h1 className="h3 mb-0">Admin Dashboard</h1>
-            <div>
-              <span className="me-3">Welcome, {user?.email}</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="container">
-        {error && (
-          <div className="alert alert-danger" role="alert">
-            {error}
-          </div>
-        )}
-
-        <div className="row g-4">
-          <div className="col-md-6 col-lg-4">
-            <div className="card shadow-sm h-100">
-              <div className="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">Leave Applications</h5>
-                <div>
-                  <DatePicker
-                    selectsRange={true}
-                    startDate={startDate}
-                    endDate={endDate}
-                    onChange={(update) => setDateRange(update)}
-                    className="form-control form-control-sm"
-                    placeholderText="Select date range"
-                  />
-                </div>
-              </div>
-              <div className="card-body">
-                {loading ? (
-                  <p className="text-muted">Loading...</p>
-                ) : (
-                  <>
-                    <h2 className="card-title text-info">{appliedLeaves.length}</h2>
-                    <p className="text-muted">
-                      Applications from {startDate && format(startDate, 'MMM dd, yyyy')} to{' '}
-                      {endDate && format(endDate, 'MMM dd, yyyy')}
-                    </p>
-                    <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                      <table className="table table-sm table-striped">
-                        <thead>
-                          <tr>
-                            <th>Email</th>
-                            <th>Category</th>
-                            <th>Dates</th>
-                            <th>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {appliedLeaves.length === 0 ? (
-                            <tr>
-                              <td colSpan="4" className="text-center">No leave applications</td>
-                            </tr>
-                          ) : (
-                            appliedLeaves.map(leave => (
-                              <tr key={leave.id}>
-                                <td>{leave.user.email}</td>
-                                <td>{leave.category || 'N/A'}</td>
-                                <td>
-                                  {format(new Date(leave.startDate), 'MMM dd')} -{' '}
-                                  {format(new Date(leave.endDate), 'MMM dd')}
-                                </td>
-                                <td>{leave.status}</td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="col-md-6 col-lg-4">
-            <div className="card shadow-sm h-100">
-              <div className="card-header bg-warning text-white">
-                <h5 className="mb-0">Pending Leaves</h5>
-              </div>
-              <div className="card-body">
-                {loading ? (
-                  <p className="text-muted">Loading...</p>
-                ) : (
-                  <>
-                    <h2 className="card-title text-warning">{pendingLeaves.length}</h2>
-                    <p className="text-muted">Leaves awaiting approval</p>
-                    <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                      <table className="table table-sm table-striped">
-                        <thead>
-                          <tr>
-                            <th>Email</th>
-                            <th>Category</th>
-                            <th>Dates</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {pendingLeaves.length === 0 ? (
-                            <tr>
-                              <td colSpan="3" className="text-center">No pending leaves</td>
-                            </tr>
-                          ) : (
-                            pendingLeaves.map(leave => (
-                              <tr key={leave.id}>
-                                <td>{leave.user.email}</td>
-                                <td>{leave.category || 'N/A'}</td>
-                                <td>
-                                  {format(new Date(leave.startDate), 'MMM dd')} -{' '}
-                                  {format(new Date(leave.endDate), 'MMM dd')}
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="col-md-6 col-lg-4">
-            <div className="card shadow-sm h-100">
-              <div className="card-header bg-success text-white">
-                <h5 className="mb-0">Leave Categories</h5>
-              </div>
-              <div className="card-body">
-                {appliedLeaves.length > 0 ? (
-                  <Bar data={chartData} options={chartOptions} />
-                ) : (
-                  <p className="text-muted">No data to display</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 d-flex flex-wrap gap-2">
-          <a href="/apply-leave" className="btn btn-primary">Add New User</a>
-          <a href="/approval" className="btn btn-success">Approve Leaves</a>
-          <a href="/history" className="btn btn-info">View History</a>
-        </div>
-      </main>
-    </div>
-  );
+const initialState = {
+  appliedLeaves: [],
+  currentLeaves: [],
+  pendingLeaves: [],
+  appliedLeavesByDateRange: [], // Add this
+  leaveHistory: { content: [] },
+  leaveBalances: { SICK: 10, CASUAL: 15, PAID: 20 },
+  loading: false,
+  error: null,
 };
 
-export default Dashboard;
+const leaveReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case 'FETCH_LEAVES_REQUEST':
+    case 'APPLY_LEAVE_REQUEST':
+    case 'FETCH_HISTORY_REQUEST':
+    case 'CANCEL_LEAVE_REQUEST':
+    case 'APPROVE_LEAVE_REQUEST':
+    case 'DECLINE_LEAVE_REQUEST':
+    case 'FETCH_PENDING_LEAVES_REQUEST':
+    case 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_REQUEST': // Add this
+      return { ...state, loading: true, error: null };
+
+    case 'FETCH_LEAVES_SUCCESS':
+      return { ...state, currentLeaves: action.payload, loading: false };
+
+    case 'APPLY_LEAVE_SUCCESS':
+      return { ...state, appliedLeaves: [...state.appliedLeaves, action.payload], loading: false };
+
+    case 'FETCH_HISTORY_SUCCESS':
+      return { ...state, leaveHistory: action.payload || { content: [] }, loading: false };
+
+    case 'CANCEL_LEAVE_SUCCESS':
+      return {
+        ...state,
+        appliedLeaves: state.appliedLeaves.filter(leave => leave.id !== action.payload),
+        currentLeaves: state.currentLeaves.filter(leave => leave.id !== action.payload),
+        loading: false,
+      };
+
+    case 'APPROVE_LEAVE_SUCCESS':
+    case 'DECLINE_LEAVE_SUCCESS':
+      return {
+        ...state,
+        currentLeaves: state.currentLeaves.filter(leave => leave.id !== action.payload.id),
+        pendingLeaves: state.pendingLeaves.filter(leave => leave.id !== action.payload.id),
+        loading: false,
+      };
+
+    case 'FETCH_PENDING_LEAVES_SUCCESS':
+      return { ...state, pendingLeaves: action.payload, loading: false };
+
+    case 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_SUCCESS': // Add this
+      return { ...state, appliedLeavesByDateRange: action.payload, loading: false };
+
+    case 'FETCH_LEAVES_FAILURE':
+    case 'APPLY_LEAVE_FAILURE':
+    case 'FETCH_HISTORY_FAILURE':
+    case 'CANCEL_LEAVE_FAILURE':
+    case 'APPROVE_LEAVE_FAILURE':
+    case 'DECLINE_LEAVE_FAILURE':
+    case 'FETCH_PENDING_LEAVES_FAILURE':
+    case 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_FAILURE': // Add this
+      return { ...state, error: action.payload, loading: false };
+
+    default:
+      return state;
+  }
+};
+
+export default leaveReducer;
+
+import axios from 'axios';
+
+export const APPLY_LEAVE_REQUEST = 'APPLY_LEAVE_REQUEST';
+export const APPLY_LEAVE_SUCCESS = 'APPLY_LEAVE_SUCCESS';
+export const APPLY_LEAVE_FAILURE = 'APPLY_LEAVE_FAILURE';
+export const FETCH_PENDING_LEAVES_REQUEST = 'FETCH_PENDING_LEAVES_REQUEST';
+export const FETCH_PENDING_LEAVES_SUCCESS = 'FETCH_PENDING_LEAVES_SUCCESS';
+export const FETCH_PENDING_LEAVES_FAILURE = 'FETCH_PENDING_LEAVES_FAILURE';
+export const FETCH_LEAVES_REQUEST = 'FETCH_LEAVES_REQUEST';
+export const FETCH_LEAVES_SUCCESS = 'FETCH_LEAVES_SUCCESS';
+export const FETCH_LEAVES_FAILURE = 'FETCH_LEAVES_FAILURE';
+export const FETCH_HISTORY_REQUEST = 'FETCH_HISTORY_REQUEST';
+export const FETCH_HISTORY_SUCCESS = 'FETCH_HISTORY_SUCCESS';
+export const FETCH_HISTORY_FAILURE = 'FETCH_HISTORY_FAILURE';
+export const CANCEL_LEAVE_REQUEST = 'CANCEL_LEAVE_REQUEST';
+export const CANCEL_LEAVE_SUCCESS = 'CANCEL_LEAVE_SUCCESS';
+export const CANCEL_LEAVE_FAILURE = 'CANCEL_LEAVE_FAILURE';
+export const APPROVE_LEAVE_REQUEST = 'APPROVE_LEAVE_REQUEST';
+export const APPROVE_LEAVE_SUCCESS = 'APPROVE_LEAVE_SUCCESS';
+export const APPROVE_LEAVE_FAILURE = 'APPROVE_LEAVE_FAILURE';
+export const DECLINE_LEAVE_REQUEST = 'DECLINE_LEAVE_REQUEST';
+export const DECLINE_LEAVE_SUCCESS = 'DECLINE_LEAVE_SUCCESS';
+export const DECLINE_LEAVE_FAILURE = 'DECLINE_LEAVE_FAILURE';
+export const FETCH_APPLIED_LEAVES_BY_DATE_RANGE_REQUEST = 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_REQUEST';
+export const FETCH_APPLIED_LEAVES_BY_DATE_RANGE_SUCCESS = 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_SUCCESS';
+export const FETCH_APPLIED_LEAVES_BY_DATE_RANGE_FAILURE = 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_FAILURE';
+
+export const applyLeave = (leaveData, token) => async dispatch => {
+  dispatch({ type: APPLY_LEAVE_REQUEST });
+  try {
+    const response = await axios.post('http://localhost:5000/api/leaves/apply', leaveData, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: APPLY_LEAVE_SUCCESS, payload: response.data });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to apply leave';
+    dispatch({ type: APPLY_LEAVE_FAILURE, payload: message });
+    throw error;
+  }
+};
+
+export const fetchPendingLeaves = (token, page = 0, size = 10) => async dispatch => {
+  dispatch({ type: FETCH_PENDING_LEAVES_REQUEST });
+  try {
+    const response = await axios.get('http://localhost:5000/api/leaves/pending', {
+      params: { page, size },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: FETCH_PENDING_LEAVES_SUCCESS, payload: response.data.content });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to fetch pending leaves';
+    dispatch({ type: FETCH_PENDING_LEAVES_FAILURE, payload: message });
+    throw error;
+  }
+};
+
+export const fetchCurrentLeaves = (token, page = 0, size = 10) => async dispatch => {
+  dispatch({ type: FETCH_LEAVES_REQUEST });
+  try {
+    const response = await axios.get('http://localhost:5000/api/leaves/current', {
+      params: { page, size },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: FETCH_LEAVES_SUCCESS, payload: response.data.content });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to fetch leaves';
+    dispatch({ type: FETCH_LEAVES_FAILURE, payload: message });
+    throw error;
+  }
+};
+
+export const fetchLeaveHistory = (token, year, page = 0, size = 10) => async dispatch => {
+  dispatch({ type: FETCH_HISTORY_REQUEST });
+  try {
+    const response = await axios.get('http://localhost:5000/api/leaves/history', {
+      params: { year, page, size },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: FETCH_HISTORY_SUCCESS, payload: response.data });
+  } catch (error) {
+    const message = error.response?.data?.error || error.message || 'Failed to fetch history';
+    dispatch({ type: FETCH_HISTORY_FAILURE, payload: message });
+    throw error;
+  }
+};
+
+export const cancelLeave = (leaveId, token) => async dispatch => {
+  dispatch({ type: CANCEL_LEAVE_REQUEST });
+  try {
+    await axios.delete(`http://localhost:5000/api/leaves/${leaveId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: CANCEL_LEAVE_SUCCESS, payload: leaveId });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to cancel leave';
+    dispatch({ type: CANCEL_LEAVE_FAILURE, payload: message });
+    throw error;
+  }
+};
+
+export const approveLeave = (leaveId, token) => async dispatch => {
+  dispatch({ type: APPROVE_LEAVE_REQUEST });
+  try {
+    await axios.put(`http://localhost:5000/api/leaves/approve/${leaveId}`, null, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: APPROVE_LEAVE_SUCCESS, payload: { id: leaveId } });
+    dispatch(fetchPendingLeaves(token));
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to approve leave';
+    dispatch({ type: APPROVE_LEAVE_FAILURE, payload: message });
+    dispatch(fetchPendingLeaves(token));
+    throw error;
+  }
+};
+
+export const declineLeave = (leaveId, reason, token) => async dispatch => {
+  dispatch({ type: DECLINE_LEAVE_REQUEST });
+  try {
+    await axios.put(`http://localhost:5000/api/leaves/reject/${leaveId}`, { declineReason: reason }, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: DECLINE_LEAVE_SUCCESS, payload: { id: leaveId } });
+    dispatch(fetchPendingLeaves(token));
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.response?.data?.message || error.message || 'Failed to decline leave';
+    dispatch({ type: DECLINE_LEAVE_FAILURE, payload: message });
+    dispatch(fetchPendingLeaves(token));
+    throw error;
+  }
+};
+
+export const fetchAppliedLeavesByDateRange = (startDate, endDate, token) => async dispatch => {
+  dispatch({ type: FETCH_APPLIED_LEAVES_BY_DATE_RANGE_REQUEST });
+  try {
+    const response = await axios.get('http://localhost:5000/api/leaves/applied', {
+      params: { startDate, endDate },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: FETCH_APPLIED_LEAVES_BY_DATE_RANGE_SUCCESS, payload: response.data });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.message || 'Failed to fetch applied leaves';
+    dispatch({ type: FETCH_APPLIED_LEAVES_BY_DATE_RANGE_FAILURE, payload: message });
+    throw error;
+  }
+};
