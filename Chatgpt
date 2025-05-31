@@ -1,4 +1,3 @@
-// Updated AddEmployee component with full validations
 import React, { useState } from 'react';
 import '../css/AddEmployee.css';
 import { useDispatch, useSelector } from 'react-redux';
@@ -39,8 +38,8 @@ const AddEmployee = () => {
     let error = '';
     switch (name) {
       case 'email':
-        if (!value.endsWith('@infinite.com') || value.length < 25 || value.length > 100) {
-          error = 'Email must end with @infinite.com and be 25-100 characters.';
+        if (!value.endsWith('@infinite.com') || value.length >100) {
+          error = 'Email must end with @infinite.com';
         }
         break;
       case 'mobile':
@@ -191,3 +190,19 @@ const AddEmployee = () => {
 };
 
 export default AddEmployee;
+
+//addUser:-
+// User Actions: Handles user-related operations (e.g., add user)
+import axios from 'axios';
+
+export const addUser = (userData, token) => async dispatch => {
+  dispatch({ type: 'ADD_USER_REQUEST' });
+  try {
+    const response = await axios.post('http://localhost:5000/api/users', userData, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: 'ADD_USER_SUCCESS', payload: response.data });
+  } catch (error) {
+    dispatch({ type: 'ADD_USER_FAILURE', payload: error.response?.data?.errors[0] || 'Failed to add user' });
+  }
+};
