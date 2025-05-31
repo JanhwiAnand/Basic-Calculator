@@ -187,3 +187,48 @@ const AddEmployee = () => {
 };
 
 export default AddEmployee;
+
+
+const isFormValid = () => {
+  let valid = true;
+  const newErrors = {};
+
+  Object.entries(employee).forEach(([field, value]) => {
+    let error = '';
+
+    switch (field) {
+      case 'email':
+        if (!value.endsWith('@infinite.com') || value.length > 100) {
+          error = 'Email must end with @infinite.com';
+        }
+        break;
+      case 'mobile':
+        if (!/^\d{1,12}$/.test(value)) {
+          error = 'Mobile number must be up to 12 digits only.';
+        }
+        break;
+      case 'firstName':
+      case 'lastName':
+        if (!/^[a-zA-Z]+$/.test(value)) {
+          error = 'Name must contain only letters.';
+        }
+        break;
+      case 'password':
+        if (value.length < 6) error = 'Password must be at least 6 characters.';
+        break;
+      case 'confirmPassword':
+        if (value !== employee.password) error = 'Passwords do not match.';
+        break;
+      default:
+        if (!value.trim()) error = 'This field is required.';
+    }
+
+    if (error) {
+      valid = false;
+      newErrors[field] = error;
+    }
+  });
+
+  setErrors(newErrors);
+  return valid;
+};
