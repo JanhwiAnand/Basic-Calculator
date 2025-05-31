@@ -1,222 +1,158 @@
-import React, { useState } from 'react';
-import '../css/AddEmployee.css';
-import { useDispatch, useSelector } from 'react-redux';
-import { getToken } from '../redux/selectors';
-import { addUser } from '../redux/actions/userActions';
-import { Eye, EyeOff } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { getUser } from '../redux/selectors';
+import Logout from './Logout';
 
-const departments = ['HR', 'Development', 'Marketing', 'Finance', 'Production', 'Devops'];
-const states = ['Karnataka', 'Maharashtra', 'Delhi', 'Tamil Nadu'];
+const Navbar = () => {
+    const user = useSelector(getUser);
 
-const AddEmployee = () => {
-  const dispatch = useDispatch();
-  const token = useSelector(getToken);
-
-  const [employee, setEmployee] = useState({
-    email: '',
-    firstname: '',
-    lastname: '',
-    department: '',
-    phnno: '',
-    country: '',
-    state: '',
-    city: '',
-    date_of_joining: '',
-    password: '',
-    role: 'EMPLOYEE'
-  });
-
-  const [errors, setErrors] = useState({});
-  const [addUserLoading, setAddUserLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setEmployee(prev => ({ ...prev, [name]: value }));
-
-    // Live validation while typing
-    validateField(name, value);
-  };
-
-  const validateField = (name, value) => {
-    let error = '';
-
-    switch (name) {
-      case 'email':
-        if (!value.endsWith('@infinite.com') || value.length > 100) {
-          error = 'Email must end with @infinite.com';
-        }
-        break;
-      case 'phnno':
-        if (!/^\d{1,12}$/.test(value)) {
-          error = 'Mobile number must be up to 12 digits only.';
-        }
-        break;
-      case 'firstname':
-      case 'lastname':
-        if (!/^[a-zA-Z]+$/.test(value)) {
-          error = 'Name must contain only letters.';
-        }
-        break;
-      case 'password':
-        if (value.length < 6) {
-          error = 'Password must be at least 6 characters.';
-        }
-        break;
-      default:
-        if (!value.trim()) {
-          error = 'This field is required.';
-        }
-    }
-
-    setErrors(prev => ({ ...prev, [name]: error }));
-  };
-
-  const isFormValid = () => {
-    let valid = true;
-    const newErrors = {};
-
-    Object.entries(employee).forEach(([field, value]) => {
-      let error = '';
-
-      switch (field) {
-        case 'email':
-          if (!value.endsWith('@infinite.com') || value.length > 100) {
-            error = 'Email must end with @infinite.com';
-          }
-          break;
-        case 'phnno':
-          if (!/^\d{1,12}$/.test(value)) {
-            error = 'Mobile number must be up to 12 digits only.';
-          }
-          break;
-        case 'firstname':
-        case 'lastname':
-          if (!/^[a-zA-Z]+$/.test(value)) {
-            error = 'Name must contain only letters.';
-          }
-          break;
-        case 'password':
-          if (value.length < 6) {
-            error = 'Password must be at least 6 characters.';
-          }
-          break;
-        default:
-          if (!value.trim()) {
-            error = 'This field is required.';
-          }
-      }
-
-      if (error) {
-        valid = false;
-        newErrors[field] = error;
-      }
-    });
-
-    setErrors(newErrors);
-    return valid;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!isFormValid()) {
-      console.log('Form invalid', errors);
-      return;
-    }
-
-    setAddUserLoading(true);
-    try {
-      await dispatch(addUser(employee, token));
-      alert('User added successfully!');
-      setEmployee({
-        email: '', firstname: '', lastname: '', department: '', phnno: '', country: '',
-        state: '', city: '', date_of_joining: '', password: '', role: 'EMPLOYEE'
-      });
-      setErrors({});
-    } catch (error) {
-      alert(error.message || 'Failed to add user');
-    } finally {
-      setAddUserLoading(false);
-    }
-  };
-
-  const today = new Date().toISOString().split('T')[0];
-
-  return (
-    <div className="container mt-5 mb-5">
-      <div className="card shadow-lg p-4 rounded-4">
-        <h3 className="text-center mb-4">Add Employee</h3>
-        <form onSubmit={handleSubmit} noValidate>
-          <div className="row g-3">
-            <div className="col-md-6">
-              <label className="form-label">Email ID</label>
-              <input type="email" className="form-control" name="email" value={employee.email} onChange={handleChange} required />
-              {errors.email && <div className="text-danger">{errors.email}</div>}
-            </div>
-            <div className="col-md-6">
-              <label className="form-label">Mobile No</label>
-              <input type="text" className="form-control" name="phnno" value={employee.phnno} onChange={handleChange} required />
-              {errors.phnno && <div className="text-danger">{errors.phnno}</div>}
-            </div>
-            <div className="col-md-6">
-              <label className="form-label">First Name</label>
-              <input type="text" className="form-control" name="firstname" value={employee.firstname} onChange={handleChange} required />
-              {errors.firstname && <div className="text-danger">{errors.firstname}</div>}
-            </div>
-            <div className="col-md-6">
-              <label className="form-label">Last Name</label>
-              <input type="text" className="form-control" name="lastname" value={employee.lastname} onChange={handleChange} required />
-              {errors.lastname && <div className="text-danger">{errors.lastname}</div>}
-            </div>
-            <div className="col-md-6">
-              <label className="form-label">Department</label>
-              <select className="form-select" name="department" value={employee.department} onChange={handleChange} required>
-                <option value="">Select Department</option>
-                {departments.map((dept, idx) => <option key={idx} value={dept}>{dept}</option>)}
-              </select>
-              {errors.department && <div className="text-danger">{errors.department}</div>}
-            </div>
-            <div className="col-md-6">
-              <label className="form-label">Country</label>
-              <input type="text" className="form-control" name="country" value={employee.country} onChange={handleChange} required />
-            </div>
-            <div className="col-md-6">
-              <label className="form-label">State</label>
-              <select className="form-select" name="state" value={employee.state} onChange={handleChange} required>
-                <option value="">Select State</option>
-                {states.map((state, idx) => <option key={idx} value={state}>{state}</option>)}
-              </select>
-            </div>
-            <div className="col-md-6">
-              <label className="form-label">City</label>
-              <input type="text" className="form-control" name="city" value={employee.city} onChange={handleChange} required />
-            </div>
-            <div className="col-md-6">
-              <label className="form-label">Date of Joining</label>
-              <input type="date" className="form-control" name="date_of_joining" value={employee.date_of_joining} min={today} onChange={handleChange} required />
-            </div>
-            <div className="col-md-6 position-relative">
-              <label className="form-label">Password</label>
-              <input type={showPassword ? 'text' : 'password'} className="form-control" name="password" value={employee.password} onChange={handleChange} required />
-              <span onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '15px', top: '38px', cursor: 'pointer' }}>
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </span>
-              {errors.password && <div className="text-danger">{errors.password}</div>}
-            </div>
-          </div>
-          <div className="d-flex justify-content-center mt-4">
-            <button type="submit" className="btn btn-primary" disabled={addUserLoading}>
-              {addUserLoading ? 'Adding...' : 'Add User'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+    return (
+        <nav className="navbar navbar-expand-lg navbar-light bg-light">
+            <div className="container-fluid">
+                <span className="navbar-brand">EMS</span>
+                <button
+                    className="navbar-toggler"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#navbarNav"
+                    aria-controls="navbarNav"
+                    aria-expanded="false"
+                    aria-label="Toggle navigation"
+                >
+                    <span className="navbar-toggler-icon"></span>
+                </button>
+                <div className="collapse navbar-collapse" id="navbarNav">
+                    <ul className="navbar-nav me-auto">
+                        {user?.role === 'ADMIN' && (
+                            <li className="nav-item">
+                                <NavLink className="nav-link" to="/add-employee">Add Employee</NavLink>
+                            </li>
+                        )}
+                        {user?.role === 'EMPLOYEE' && (
+                            <li className="nav-item">
+                                <NavLink className="nav-link" to="/apply-leave">Apply Leave</NavLink>
+                            </li>
+                        )}
+                        {user?.role === 'ADMIN' && (
+                            <li className="nav-item">
+                                <NavLink className="nav-link" to="/approval">Approval</NavLink>
+                            </li>
+                        )}
+                        {user?.role === 'EMPLOYEE' && (
+                            <li className="nav-item">
+                                <NavLink className="nav-link" to="/history">History</NavLink>
+                            </li>
+                        )}
+                        <li className="nav-item">
+                            <NavLink className="nav-link" to="/profile">Profile</NavLink>
+                        </li>
+                    </ul>
+                    <Logout />
+                </div>
+            </div>
+        </nav>
+    );
 };
 
-export default AddEmployee;
+export default Navbar;import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import Login from './components/Login';
+import Navbar from './components/Navbar';
+import ApplyLeave from './components/ApplyLeave';
+import Approval from './components/Approval';
+import History from './components/History';
+import Profile from './components/Profile';
+import ErrorBoundary from './components/ErrorBoundary';
+import { getToken, getUser } from './redux/selectors';
+import './styles.css';
+import AddEmployeeForm from './components/AddUser';
 
-        
-            
+function App() {
+  const token = useSelector(getToken); // Check if user is logged in
+  const user = useSelector(getUser);   // Get user details (e.g., role)
+
+  const isAdmin = user?.role === 'ADMIN';
+
+  return (
+    <div style={{height:'100vh',width:'100vw'}}>
+    <Router>
+      {/* Show Navbar only if user is logged in */}
+      {token && <Navbar />}
+      <div className="container mt-3">
+        <Routes>
+          {/* Login Route: Redirect to apply-leave if already logged in */}
+          <Route
+            path="/login"
+            element={
+              token ? (
+                <Navigate to="/apply-leave" />
+              ) : (
+                <ErrorBoundary>
+                  <Login />
+                </ErrorBoundary>
+              )
+            }
+          />
+          {/* Apply Leave Route: Accessible to all logged-in users, but UI will differ based on role */}
+          <Route
+            path="/apply-leave"
+            element={
+              token ? (
+                <ErrorBoundary>
+                  <ApplyLeave />
+                </ErrorBoundary>
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          {/* Approval Route: Accessible only to Admins */}
+          <Route
+            path="/approval"
+            element={
+              token && isAdmin ? (
+                <ErrorBoundary>
+                  <Approval />
+                </ErrorBoundary>
+              ) : (
+                <Navigate to={token ? "/apply-leave" : "/login"} />
+              )
+            }
+          />
+          {/* History Route: Accessible to all logged-in users */}
+          <Route
+            path="/history"
+            element={
+              token ? (
+                <ErrorBoundary>
+                  <History />
+                </ErrorBoundary>
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          {/* Profile Route: Accessible to all logged-in users */}
+          <Route
+            path="/profile"
+            element={
+              token ? (
+                <ErrorBoundary>
+                  <Profile />
+                </ErrorBoundary>
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          {/* Default Route: Redirect based on login status */}
+          <Route path="/" element={<Navigate to={token ? "/apply-leave" : "/login"} />} />
+        </Routes>
+      </div>
+    </Router>
+  </div>
+  
+  );
+}
+
+export default App; i want to add a adduser route such that when admin logins then for him apply leave will not be present, but add user, approval and all are present, but if an employee logins then for him add user should not be present, but the apply leave will be there, approvalalso not there for employee, so edit the code where required
