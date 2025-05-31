@@ -1,60 +1,435 @@
-import { NavLink } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { getUser } from '../redux/selectors';
-import Logout from './Logout';
+//leaveentity:-
+package com.example.ems.entity;
 
-const Navbar = () => {
-    const user = useSelector(getUser);
+import jakarta.persistence.*;
+import lombok.*;
 
-    return (
-        <nav className="navbar navbar-expand-lg navbar-light bg-light">
-            <div className="container-fluid">
-                <span className="navbar-brand">EMS</span>
-                <button
-                    className="navbar-toggler"
-                    type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#navbarNav"
-                    aria-controls="navbarNav"
-                    aria-expanded="false"
-                    aria-label="Toggle navigation"
-                >
-                    <span className="navbar-toggler-icon"></span>
-                </button>
-                <div className="collapse navbar-collapse" id="navbarNav">
-                    <ul className="navbar-nav me-auto">
-                        {user?.role === 'ADMIN' && (
-                            <>
-                                <li className="nav-item">
-                                    <NavLink className="nav-link" to="/dashboard">Dashboard</NavLink>
-                                </li>
-                                <li className="nav-item">
-                                    <NavLink className="nav-link" to="/add-employee">Add Employee</NavLink>
-                                </li>
-                                <li className="nav-item">
-                                    <NavLink className="nav-link" to="/approval">Approval</NavLink>
-                                </li>
-                            </>
-                        )}
-                        {user?.role === 'EMPLOYEE' && (
-                            <>
-                                <li className="nav-item">
-                                    <NavLink className="nav-link" to="/apply-leave">Apply Leave</NavLink>
-                                </li>
-                                <li className="nav-item">
-                                    <NavLink className="nav-link" to="/history">History</NavLink>
-                                </li>
-                            </>
-                        )}
-                        <li className="nav-item">
-                            <NavLink className="nav-link" to="/profile">Profile</NavLink>
-                        </li>
-                    </ul>
-                    <Logout />
-                </div>
-            </div>
-        </nav>
-    );
-};
+import java.time.LocalDate;
+import java.time.LocalDateTime; // Add this import
 
-export default Navbar;
+import com.example.ems.enums.LeaveStatus;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
+@Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class LeaveRequest {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    @JsonBackReference
+    private User user;
+
+    private LocalDate startDate;
+
+    private LocalDate endDate;
+
+    private String reason;
+
+    @Enumerated(EnumType.STRING)
+    private LeaveStatus status;
+
+    @Column(name = "created_at", nullable = false) // Add this field
+    private LocalDateTime createdAt;
+
+    @Column(nullable = false) // Add this field
+    private String category;
+
+    @PrePersist // Automatically set createdAt before saving
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}
+
+//dto
+package com.example.ems.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.time.LocalDate;
+
+public record LeaveRequestDto(
+        @NotBlank(message = "Employee email is required") String employeeEmail,
+        @NotNull(message = "Start date is required") LocalDate startDate,
+        @NotNull(message = "End date is required") LocalDate endDate,
+        @NotBlank(message = "Reason is required") String reason,
+        @NotBlank(message = "Category is required") String category // Add this
+) {}
+
+//repo
+package com.example.ems.repository;
+
+import com.example.ems.entity.LeaveRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime; // Add this import
+import java.util.List;
+
+public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long>, JpaSpecificationExecutor<LeaveRequest> {
+
+    Page<LeaveRequest> findByUserEmailOrderByStartDateDesc(String email, Pageable pageable);
+
+    @Query("SELECT lr FROM LeaveRequest lr WHERE lr.user.email = :email AND " +
+           "((lr.startDate <= :endDate AND lr.endDate >= :startDate) AND lr.status = 'APPROVED')")
+    List<LeaveRequest> findOverlappingLeaves(String email, LocalDate startDate, LocalDate endDate);
+
+    @Query("SELECT SUM(DATEDIFF(lr.endDate, lr.startDate) + 1) FROM LeaveRequest lr " +
+           "WHERE lr.user.email = :email AND YEAR(lr.startDate) = :year AND lr.status = 'APPROVED'")
+    Long calculateLeaveDays(String email, int year);
+
+    List<LeaveRequest> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end); // Add this
+}
+//leaveservice interface:-
+package com.example.ems.service;
+
+import com.example.ems.dto.LeaveRequestDto;
+import com.example.ems.entity.LeaveRequest;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import java.time.LocalDate;
+import java.util.List;
+
+public interface LeaveService {
+    LeaveRequest applyLeave(LeaveRequestDto dto, HttpServletRequest request);
+    Page<LeaveRequest> getLeaveHistory(String email, Pageable pageable, Integer year);
+    Page<LeaveRequest> getAllLeaveHistory(Pageable pageable);
+    LeaveRequest approveLeave(Long leaveId, HttpServletRequest request);
+    LeaveRequest rejectLeave(Long leaveId, HttpServletRequest request);
+    void cancelLeave(Long leaveId, HttpServletRequest request);
+    List<LeaveRequest> getLeavesByDateRange(LocalDate startDate, LocalDate endDate); // Add this
+}
+
+//impl
+package com.example.ems.service;
+
+import com.example.ems.dto.LeaveRequestDto;
+import com.example.ems.entity.LeaveRequest;
+import com.example.ems.enums.LeaveStatus;
+import com.example.ems.entity.User;
+import com.example.ems.exception.LeaveValidationException;
+import com.example.ems.exception.ResourceNotFoundException;
+import com.example.ems.repository.LeaveRequestRepository;
+import com.example.ems.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class LeaveServiceImpl implements LeaveService {
+    private final LeaveRequestRepository leaveRequestRepository;
+    private final UserRepository userRepository;
+    private static final Logger logger = LoggerFactory.getLogger(LeaveServiceImpl.class);
+    private static final int MAX_LEAVE_DAYS = 20;
+
+    @Override
+    public LeaveRequest applyLeave(LeaveRequestDto dto, HttpServletRequest request) {
+        String email = dto.employeeEmail();
+        String tokenEmail = (String) request.getAttribute("email");
+
+        logger.info("Applying leave for user email: {}. Token email: {}", email, tokenEmail);
+
+        if (email == null || email.trim().isEmpty()) {
+            logger.error("Employee email cannot be null or empty");
+            throw new LeaveValidationException("Employee email cannot be null or empty");
+        }
+        if (tokenEmail == null) {
+            logger.error("Token email is null");
+            throw new LeaveValidationException("Authentication token is invalid or missing");
+        }
+
+        if (!email.equals(tokenEmail)) {
+            logger.error("Email mismatch: DTO email {} does not match token email {}", email, tokenEmail);
+            throw new LeaveValidationException("You can only apply leave for your own account");
+        }
+
+        if (dto.startDate().isAfter(dto.endDate())) {
+            logger.error("Start date {} is after end date {}", dto.startDate(), dto.endDate());
+            throw new LeaveValidationException("Start date must be before or equal to end date");
+        }
+
+        if (dto.startDate().isBefore(LocalDate.now())) {
+            logger.error("Start date {} is in the past", dto.startDate());
+            throw new LeaveValidationException("Start date cannot be in the past");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> {
+                    logger.error("User not found with email: {}", email);
+                    return new ResourceNotFoundException("User not found with email: " + email);
+                });
+
+        var overlappingLeaves = leaveRequestRepository.findOverlappingLeaves(
+                email, dto.startDate(), dto.endDate());
+        if (!overlappingLeaves.isEmpty()) {
+            logger.error("Leave overlaps with existing approved leave for user: {}", email);
+            throw new LeaveValidationException("Leave overlaps with existing approved leave");
+        }
+
+        int year = dto.startDate().getYear();
+        Long leaveDays = leaveRequestRepository.calculateLeaveDays(email, year);
+        long newLeaveDays = ChronoUnit.DAYS.between(dto.startDate(), dto.endDate()) + 1;
+        long totalLeaveDays = (leaveDays != null ? leaveDays : 0) + newLeaveDays;
+
+        if (totalLeaveDays > MAX_LEAVE_DAYS) {
+            logger.error("Maximum leave limit of {} days exceeded for user: {}", MAX_LEAVE_DAYS, email);
+            throw new LeaveValidationException("Maximum leave limit of " + MAX_LEAVE_DAYS + " days exceeded");
+        }
+
+        LeaveRequest leaveRequest = new LeaveRequest();
+        leaveRequest.setUser(user);
+        leaveRequest.setStartDate(dto.startDate());
+        leaveRequest.setEndDate(dto.endDate());
+        leaveRequest.setReason(dto.reason());
+        leaveRequest.setCategory(dto.category()); // Add this
+        leaveRequest.setStatus(LeaveStatus.PENDING);
+
+        logger.info("Saving leave request for user: {}", email);
+        return leaveRequestRepository.save(leaveRequest);
+    }
+
+    @Override
+    public Page<LeaveRequest> getLeaveHistory(String email, Pageable pageable, Integer year) {
+        logger.info("Fetching leave history for user: {} with year: {}", email, year);
+        Page<LeaveRequest> leaveRequests = leaveRequestRepository.findByUserEmailOrderByStartDateDesc(email, pageable);
+        if (year != null) {
+            List<LeaveRequest> filteredLeaves = leaveRequests.getContent().stream()
+                    .filter(leave -> leave.getStartDate().getYear() == year)
+                    .collect(Collectors.toList());
+            return new PageImpl<>(filteredLeaves, pageable, filteredLeaves.size());
+        }
+        return leaveRequests;
+    }
+
+    @Override
+    public Page<LeaveRequest> getAllLeaveHistory(Pageable pageable) {
+        logger.info("Fetching all leave history");
+        return leaveRequestRepository.findAll(pageable);
+    }
+
+    @Override
+    public LeaveRequest approveLeave(Long leaveId, HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        logger.info("Approving leave ID: {} by admin: {}", leaveId, email);
+
+        LeaveRequest leaveRequest = leaveRequestRepository.findById(leaveId)
+                .orElseThrow(() -> {
+                    logger.error("Leave request not found with ID: {}", leaveId);
+                    return new ResourceNotFoundException("Leave request not found with ID: " + leaveId);
+                });
+
+        if (leaveRequest.getStatus() != LeaveStatus.PENDING) {
+            logger.error("Only PENDING leaves can be approved, current status: {}", leaveRequest.getStatus());
+            throw new LeaveValidationException("Only PENDING leaves can be approved");
+        }
+
+        leaveRequest.setStatus(LeaveStatus.APPROVED);
+        return leaveRequestRepository.save(leaveRequest);
+    }
+
+    @Override
+    public LeaveRequest rejectLeave(Long leaveId, HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        logger.info("Rejecting leave ID: {} by admin: {}", leaveId, email);
+
+        LeaveRequest leaveRequest = leaveRequestRepository.findById(leaveId)
+                .orElseThrow(() -> {
+                    logger.error("Leave request not found with ID: {}", leaveId);
+                    return new ResourceNotFoundException("Leave request not found with ID: " + leaveId);
+                });
+
+        if (leaveRequest.getStatus() != LeaveStatus.PENDING) {
+            logger.error("Only PENDING leaves can be rejected, current status: {}", leaveRequest.getStatus());
+            throw new LeaveValidationException("Only PENDING leaves can be rejected");
+        }
+
+        leaveRequest.setStatus(LeaveStatus.REJECTED);
+        return leaveRequestRepository.save(leaveRequest);
+    }
+
+    @Override
+    public void cancelLeave(Long leaveId, HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        logger.info("Cancelling leave ID: {} by user: {}", leaveId, email);
+
+        LeaveRequest leaveRequest = leaveRequestRepository.findById(leaveId)
+                .orElseThrow(() -> {
+                    logger.error("Leave request not found with ID: {}", leaveId);
+                    return new ResourceNotFoundException("Leave request not found with ID: " + leaveId);
+                });
+
+        if (!leaveRequest.getUser().getEmail().equals(email)) {
+            logger.error("User {} is not authorized to cancel leave ID: {}", email, leaveId);
+            throw new LeaveValidationException("You can only cancel your own leave requests");
+        }
+
+        if (leaveRequest.getStatus() != LeaveStatus.PENDING) {
+            logger.error("Only PENDING leaves can be cancelled, current status: {}", leaveRequest.getStatus());
+            throw new LeaveValidationException("Only PENDING leaves can be cancelled");
+        }
+
+        leaveRequest.setStatus(LeaveStatus.CANCELLED);
+        leaveRequestRepository.save(leaveRequest);
+        logger.info("Leave request ID: {} cancelled successfully", leaveId);
+    }
+
+    @Override
+    public List<LeaveRequest> getLeavesByDateRange(LocalDate startDate, LocalDate endDate) {
+        logger.info("Fetching leave applications between {} and {}", startDate, endDate);
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(23, 59, 59);
+        return leaveRequestRepository.findByCreatedAtBetween(start, end);
+    }
+}
+
+//leaveController:-
+package com.example.ems.controller;
+
+import com.example.ems.dto.LeaveRequestDto;
+import com.example.ems.entity.LeaveRequest;
+import com.example.ems.entity.User;
+import com.example.ems.enums.LeaveStatus;
+import com.example.ems.exception.LeaveValidationException;
+import com.example.ems.exception.ResourceNotFoundException;
+import com.example.ems.service.LeaveService;
+import com.example.ems.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api/leaves")
+public class LeaveController {
+    private static final Logger logger = LoggerFactory.getLogger(LeaveController.class);
+    private final LeaveService leaveService;
+    private final UserRepository userRepository; // Add this
+
+    public LeaveController(LeaveService leaveService, UserRepository userRepository) {
+        this.leaveService = leaveService;
+        this.userRepository = userRepository;
+    }
+
+    @PostMapping("/apply")
+    public LeaveRequest applyLeave(@Valid @RequestBody LeaveRequestDto leaveRequestDto, HttpServletRequest request) {
+        logger.info("Received leave request with employeeEmail: {}", leaveRequestDto.employeeEmail());
+        return leaveService.applyLeave(leaveRequestDto, request);
+    }
+
+    @GetMapping("/history")
+    public Page<LeaveRequest> getLeaveHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Integer year,
+            HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        Pageable pageable = PageRequest.of(page, size);
+        return leaveService.getLeaveHistory(email, pageable, year);
+    }
+
+    @GetMapping("/all")
+    public Page<LeaveRequest> getAllLeaveHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return leaveService.getAllLeaveHistory(pageable);
+    }
+
+    @GetMapping("/current")
+    public Page<LeaveRequest> getCurrentLeaves(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        if (email == null) {
+            logger.error("Token email is null in getCurrentLeaves");
+            throw new LeaveValidationException("Authentication token is invalid or missing");
+        }
+        logger.info("Fetching current leaves for user: {}", email);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<LeaveRequest> history = leaveService.getLeaveHistory(email, pageable, null);
+        List<LeaveRequest> currentLeaves = history.getContent().stream()
+                .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
+                .collect(Collectors.toList());
+        return new PageImpl<>(currentLeaves, pageable, history.getTotalElements());
+    }
+
+    @GetMapping("/pending")
+    public Page<LeaveRequest> getPendingLeaves(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        logger.info("Fetching pending leaves, page: {}, size: {}", page, size);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<LeaveRequest> allLeaves = leaveService.getAllLeaveHistory(pageable);
+        List<LeaveRequest> pendingLeaves = allLeaves.getContent().stream()
+                .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
+                .collect(Collectors.toList());
+        return new PageImpl<>(pendingLeaves, pageable, allLeaves.getTotalElements());
+    }
+
+    @PutMapping("/approve/{leaveId}")
+    public LeaveRequest approveLeave(@PathVariable Long leaveId, HttpServletRequest request) {
+        return leaveService.approveLeave(leaveId, request);
+    }
+
+    @PutMapping("/reject/{leaveId}")
+    public LeaveRequest rejectLeave(@PathVariable Long leaveId, HttpServletRequest request) {
+        return leaveService.rejectLeave(leaveId, request);
+    }
+
+    @DeleteMapping("/{leaveId}")
+    public void cancelLeave(@PathVariable Long leaveId, HttpServletRequest request) {
+        logger.info("Cancelling leave request with ID: {}", leaveId);
+        leaveService.cancelLeave(leaveId, request);
+    }
+
+    @GetMapping("/applied")
+    public List<LeaveRequest> getLeavesByDateRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        logger.info("Fetching leave applications for admin: {} between {} and {}", email, startDate, endDate);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+        if (!user.getRole().equals("ADMIN")) {
+            logger.error("User {} is not authorized to access all leave applications", email);
+            throw new LeaveValidationException("Only admins can access all leave applications");
+        }
+        return leaveService.getLeavesByDateRange(startDate, endDate);
+    }
+}
+
