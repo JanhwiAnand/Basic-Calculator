@@ -1,60 +1,21 @@
-//leave routes
-const express = require('express');
-const router = express.Router();
-const { authMiddleware } = require('../middleware/authMiddleware');
-const {
-  validateLeaveRequest,
-  validateLeaveId,
-  validateRejectLeave,
-  validateUsernameQuery,
-} = require('../middleware/validationMiddleware');
-const {
-  applyLeave,
-  cancelLeave,
-  getCurrentLeaves,
-  getPendingLeaves,
-  approveLeave,
-  rejectLeave,
-  getLeaveHistory,
-  getLeavesByDateRange, // Add this
-} = require('../controllers/leaveController');
-
-router.post('/apply', authMiddleware, validateLeaveRequest, applyLeave);
-router.delete('/:id', authMiddleware, validateLeaveId, cancelLeave);
-router.get('/current', authMiddleware, getCurrentLeaves);
-router.get('/pending', authMiddleware, getPendingLeaves);
-router.put('/approve/:leaveId', authMiddleware, validateLeaveId, approveLeave);
-router.put('/reject/:leaveId', authMiddleware, validateLeaveId, validateRejectLeave, rejectLeave);
-router.get('/history', authMiddleware, getLeaveHistory);
-router.get('/applied', authMiddleware, getLeavesByDateRange); // Add this
-
-module.exports = router;
-
-//at end add this in leave contoller:-
-const getLeavesByDateRange = asyncHandler(async (req, res) => {
-  const { startDate, endDate } = req.query;
-  try {
-    if (!startDate || !endDate) {
-      throw new CustomError('startDate and endDate are required', constants.status.BAD_REQUEST);
-    }
-    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/applied`, {
-      params: { startDate, endDate },
-      headers: { Authorization: req.headers.authorization },
-    });
-    res.status(constants.status.OK).json(response.data);
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
-});
-module.exports = {
-  applyLeave,
-  cancelLeave,
-  getCurrentLeaves,
-  getPendingLeaves,
-  approveLeave,
-  rejectLeave,
-  getLeaveHistory,
-  getLeavesByDateRange, // Add this
-};
-Module Warning (from ./node_modules/source-map-loader/dist/cjs.js):
-Failed to parse source map from 'D:\employeeLeaveManagement\frontend\node_modules\react-datepicker\src\year_dropdown_options.tsx' file: Error: ENOENT: no such file or directory, open 'D:\employeeLeaveManagement\frontend\node_modules\react-datepicker\src\year_dropdown_options.tsx'
+//error from spring boot
+security.web.FilterChainProxy        : Secured GET /api/leaves/pending?page=0&size=10
+2025-06-01T11:53:20.954+05:30 DEBUG 20256 --- [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Secured GET /api/leaves/applied?startDate=2025-05-01&endDate=2025-06-01
+2025-06-01T11:53:20.982+05:30  INFO 20256 --- [nio-8080-exec-3] c.e.ems.controller.LeaveController       : Fetching pending leaves, page: 0, size: 10
+2025-06-01T11:53:20.986+05:30  INFO 20256 --- [nio-8080-exec-3] c.example.ems.service.LeaveServiceImpl   : Fetching all leave history
+2025-06-01T11:53:21.000+05:30  INFO 20256 --- [nio-8080-exec-2] c.e.ems.controller.LeaveController       : Fetching leave applications for admin: admin@infinite.com between 2025-05-01 and 2025-06-01
+Hibernate: select u1_0.id,u1_0.city,u1_0.country,u1_0.date_of_joining,u1_0.department,u1_0.email,u1_0.firstname,u1_0.lastname,u1_0.password,u1_0.phnno,u1_0.role,u1_0.state from user u1_0 where u1_0.email=?
+Hibernate: select lr1_0.id,lr1_0.category,lr1_0.created_at,lr1_0.end_date,lr1_0.reason,lr1_0.start_date,lr1_0.status,lr1_0.user_id from leave_request lr1_0 limit ?,?
+2025-06-01T11:53:21.025+05:30 ERROR 20256 --- [nio-8080-exec-2] c.e.ems.controller.LeaveController       : User admin@infinite.com is not authorized to access all leave applications
+2025-06-01T11:53:21.036+05:30 ERROR 20256 --- [nio-8080-exec-2] c.e.e.exception.GlobalExceptionHandler   : Leave validation error: Only admins can access all leave applications
+2025-06-01T11:53:21.042+05:30  WARN 20256 --- [nio-8080-exec-2] .m.m.a.ExceptionHandlerExceptionResolver : Resolved [com.example.ems.exception.LeaveValidationException: Only admins can access all leave applications]
+2025-06-01T11:53:21.066+05:30  WARN 20256 --- [nio-8080-exec-3] ration$PageModule$WarningLoggingModifier : Serializing PageImpl instances as-is is not supported, meaning that there is no guarantee about the stability of the resulting JSON structure!
+	For a stable JSON structure, please use Spring Data's PagedModel (globally via @EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO))
+	or Spring HATEOAS and Spring Data's PagedResourcesAssembler as documented in https://docs.spring.io/spring-data/commons/reference/repositories/core-extensions.html#core.web.pageables.
+//react side error:-
+Failed to load resource: the server responded with a status of 503 (Service Unavailable)
+:5000/api/leaves/applied?startDate=2025-05-01&endDate=2025-06-01:1 
+            
+            
+            Failed to load resource: the server responded with a status of 400 (Bad Request)
+leaveActions.js:146  Uncaught (in promise) 
