@@ -1,86 +1,22 @@
-import { useEffect, useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { login } from '../redux/actions/authActions';
+Uncaught (in promise) Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (http://localhost:3000/static/js/bundle.js:10655:12)
+    at XMLHttpRequest.onloadend (http://localhost:3000/static/js/bundle.js:9282:66)
+    at Axios.request (http://localhost:3000/static/js/bundle.js:9781:41)
+    at async http://localhost:3000/static/js/bundle.js:83722:22 this error is comming upon clicking the past or futire months.
+authReducer.js:28 
+ 
+ GET http://localhost:5000/api/leaves/applied?startDate=2025-02-27&endDate= 500 (Internal Server Error)
+(anonymous)	@	authReducer.js:28
+(anonymous)	@	main.d2bd46f99c0d68c…bb.hot-update.js:61
+main.d2bd46f99c0d68c…bb.hot-update.js:66 Applied Leaves: 
+(2) [{…}, {…}]
+main.d2bd46f99c0d68c…bb.hot-update.js:67 Pending Leaves: 
+[]
+settle.js:19 
+ Uncaught (in promise) 
+AxiosError {message: 'Request failed with status code 500', name: 'AxiosError', code: 'ERR_BAD_RESPONSE', config: {…}, request: XMLHttpRequest, …}
+﻿
 
-const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const dispatch = useDispatch();
-  useEffect(()=>{
-    document.body.style.margin='0';
-    document.body.style.padding='0';
-  },[])
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      await dispatch(login(email, password));
-      setLoading(false);
-    } catch (error) {
-      setLoading(false);
-      setError('Invalid username or password');
-    }
-  };
-
-  return (
-    <div style={{ minHeight: '100vh',margin:0,padding:0, background: 'linear-gradient(to right, #74ebd5, #ACB6E5)', display: 'flex', flexDirection: 'column' }}>
-      
-      {/* Header */}
-      <header className="bg-white shadow-sm p-3 text-center">
-        <h3 className="text-primary mb-0">Employee Leave Management System</h3>
-      </header>
-
-      {/* Main Login Card */}
-      <div className="container flex-grow-1 d-flex align-items-center justify-content-center">
-        <div className="col-md-5">
-          <div className="card p-4 shadow-lg rounded-4">
-            <h4 className="text-center text-primary mb-4">Login</h4>
-            <form onSubmit={handleSubmit}>
-              <div className="mb-3">
-                <label className="form-label">Email</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="new-email"
-                  required
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Password</label>
-                <input
-                  type="password"
-                  className="form-control"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="new-password"
-                  required
-                />
-              </div>
-              <button type="submit" className="btn btn-primary w-100" disabled={loading}>
-                {loading ? 'Logging in...' : 'Login'}
-              </button>
-              {error && (
-                <div className="alert alert-danger mt-3" role="alert">
-                  {error}
-                </div>
-              )}
-            </form>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <footer className="bg-light text-center text-muted py-3">
-        &copy; 2025 Employee Leave Management System. All rights reserved.
-      </footer>
-    </div>
-  );
-};
-
-export default Login;
+Once successfully logged in, in Dashboard, in Card format, Show the users applied for leaves in last one month (also provide a date range feature to filter the applied leaves). In another Card format, show the user's leave is pending.
+so this was the requirement, u did correct, but now what
