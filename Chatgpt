@@ -1,231 +1,129 @@
-Cannot read properties of undefined (reading 'email')
-TypeError: Cannot read properties of undefined (reading 'email')
-    at http://localhost:3000/static/js/bundle.js:81550:48
-    at Array.map (<anonymous>)
-    at Dashboard (http://localhost:3000/static/js/bundle.js:81548:53)
-    at react-stack-bottom-frame (http://localhost:3000/static/js/bundle.js:60157:18)
-    at renderWithHooks (http://localhost:3000/static/js/bundle.js:50367:20)
-    at updateFunctionComponent (http://localhost:3000/static/js/bundle.js:52060:17)
-    at beginWork (http://localhost:3000/static/js/bundle.js:52646:16)
-    at runWithFiberInDEV (http://localhost:3000/static/js/bundle.js:48138:68)
-    at performUnitOfWork (http://localhost:3000/static/js/bundle.js:54719:93)
-    at workLoopSync (http://localhost:3000/static/js/bundle.js:54612:38)
-import { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchAppliedLeavesByDateRange, fetchPendingLeaves } from '../redux/actions/leaveActions';
-import { getToken, getUser, getAppliedLeavesByDateRange, getPendingLeaves, getLeaveLoading, getLeaveError } from '../redux/selectors';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import { format } from 'date-fns';
-import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+package com.example.ems.controller;
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+import com.example.ems.dto.LeaveRequestDto;
+import com.example.ems.entity.LeaveRequest;
+import com.example.ems.entity.User;
+import com.example.ems.enums.LeaveStatus;
+import com.example.ems.enums.Role;
+import com.example.ems.exception.LeaveValidationException;
+import com.example.ems.exception.ResourceNotFoundException;
+import com.example.ems.service.LeaveService;
+import com.example.ems.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.web.bind.annotation.*;
 
-const Dashboard = () => {
-  const dispatch = useDispatch();
-  const token = useSelector(getToken);
-  const user = useSelector(getUser);
-  const appliedLeaves = useSelector(getAppliedLeavesByDateRange);
-  const pendingLeaves = useSelector(getPendingLeaves);
-  const loading = useSelector(getLeaveLoading);
-  const error = useSelector(getLeaveError);
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
 
-  const [dateRange, setDateRange] = useState(() => {
-    const end = new Date();
-    const start = new Date();
-    start.setMonth(end.getMonth() - 1);
-    return [start, end];
-  });
-  const [startDate, endDate] = dateRange;
+@RestController
+@RequestMapping("/api/leaves")
+public class LeaveController {
+    private static final Logger logger = LoggerFactory.getLogger(LeaveController.class);
+    private final LeaveService leaveService;
+    private final UserRepository userRepository; // Add this
 
-  useEffect(() => {
-    if (token && user?.role === 'ADMIN') {
-      const formattedStartDate = startDate ? format(startDate, 'yyyy-MM-dd') : '';
-      const formattedEndDate = endDate ? format(endDate, 'yyyy-MM-dd') : '';
-      dispatch(fetchAppliedLeavesByDateRange(formattedStartDate, formattedEndDate, token));
-      dispatch(fetchPendingLeaves(token));
+    public LeaveController(LeaveService leaveService, UserRepository userRepository) {
+        this.leaveService = leaveService;
+        this.userRepository = userRepository;
     }
-  }, [dispatch, token, user?.role, startDate, endDate]);
 
-  const categoryCounts = appliedLeaves.reduce((acc, leave) => {
-    acc[leave.category] = (acc[leave.category] || 0) + 1;
-    return acc;
-  }, {});
-  const chartData = {
-    labels: Object.keys(categoryCounts),
-    datasets: [
-      {
-        label: 'Leave Applications by Category',
-        data: Object.values(categoryCounts),
-        backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1'],
-        borderColor: ['#FF6B6B', '#4ECDC4', '#45B7D1'],
-        borderWidth: 1,
-      },
-    ],
-  };
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: { position: 'top' },
-      title: { display: true, text: 'Leave Applications by Category' },
-    },
-  };
+    @PostMapping("/apply")
+    public LeaveRequest applyLeave(@Valid @RequestBody LeaveRequestDto leaveRequestDto, HttpServletRequest request) {
+        logger.info("Received leave request with employeeEmail: {}", leaveRequestDto.employeeEmail());
+        return leaveService.applyLeave(leaveRequestDto, request);
+    }
 
-  return (
-    <div className="container-fluid min-vh-100 bg-light">
-      <header className="bg-primary text-white p-4 shadow mb-4">
-        <div className="container">
-          <div className="d-flex justify-content-between align-items-center">
-            <h1 className="h3 mb-0">Admin Dashboard</h1>
-            <div>
-              <span className="me-3">Welcome, {user?.email}</span>
-            </div>
-          </div>
-        </div>
-      </header>
+    @GetMapping("/history")
+    public Page<LeaveRequest> getLeaveHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Integer year,
+            HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        Pageable pageable = PageRequest.of(page, size);
+        return leaveService.getLeaveHistory(email, pageable, year);
+    }
 
-      <main className="container">
-        {error && (
-          <div className="alert alert-danger" role="alert">
-            {error}
-          </div>
-        )}
+    @GetMapping("/all")
+    public Page<LeaveRequest> getAllLeaveHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return leaveService.getAllLeaveHistory(pageable);
+    }
 
-        <div className="row g-4">
-          <div className="col-md-6 col-lg-4">
-            <div className="card shadow-sm h-100">
-              <div className="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">Leave Applications</h5>
-                <div>
-                  <DatePicker
-                    selectsRange={true}
-                    startDate={startDate}
-                    endDate={endDate}
-                    onChange={(update) => setDateRange(update)}
-                    className="form-control form-control-sm"
-                    placeholderText="Select date range"
-                  />
-                </div>
-              </div>
-              <div className="card-body">
-                {loading ? (
-                  <p className="text-muted">Loading...</p>
-                ) : (
-                  <>
-                    <h2 className="card-title text-info">{appliedLeaves.length}</h2>
-                    <p className="text-muted">
-                      Applications from {startDate && format(startDate, 'MMM dd, yyyy')} to{' '}
-                      {endDate && format(endDate, 'MMM dd, yyyy')}
-                    </p>
-                    <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                      <table className="table table-sm table-striped">
-                        <thead>
-                          <tr>
-                            <th>Email</th>
-                            <th>Category</th>
-                            <th>Dates</th>
-                            <th>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {appliedLeaves.length === 0 ? (
-                            <tr>
-                              <td colSpan="4" className="text-center">No leave applications</td>
-                            </tr>
-                          ) : (
-                            appliedLeaves.map(leave => (
-                              <tr key={leave.id}>
-                                <td>{leave.user.email}</td>
-                                <td>{leave.category || 'N/A'}</td>
-                                <td>
-                                  {format(new Date(leave.startDate), 'MMM dd')} -{' '}
-                                  {format(new Date(leave.endDate), 'MMM dd')}
-                                </td>
-                                <td>{leave.status}</td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
+    @GetMapping("/current")
+    public Page<LeaveRequest> getCurrentLeaves(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        if (email == null) {
+            logger.error("Token email is null in getCurrentLeaves");
+            throw new LeaveValidationException("Authentication token is invalid or missing");
+        }
+        logger.info("Fetching current leaves for user: {}", email);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<LeaveRequest> history = leaveService.getLeaveHistory(email, pageable, null);
+        List<LeaveRequest> currentLeaves = history.getContent().stream()
+                .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
+                .collect(Collectors.toList());
+        return new PageImpl<>(currentLeaves, pageable, history.getTotalElements());
+    }
 
-          <div className="col-md-6 col-lg-4">
-            <div className="card shadow-sm h-100">
-              <div className="card-header bg-warning text-white">
-                <h5 className="mb-0">Pending Leaves</h5>
-              </div>
-              <div className="card-body">
-                {loading ? (
-                  <p className="text-muted">Loading...</p>
-                ) : (
-                  <>
-                    <h2 className="card-title text-warning">{pendingLeaves.length}</h2>
-                    <p className="text-muted">Leaves awaiting approval</p>
-                    <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                      <table className="table table-sm table-striped">
-                        <thead>
-                          <tr>
-                            <th>Email</th>
-                            <th>Category</th>
-                            <th>Dates</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {pendingLeaves.length === 0 ? (
-                            <tr>
-                              <td colSpan="3" className="text-center">No pending leaves</td>
-                            </tr>
-                          ) : (
-                            pendingLeaves.map(leave => (
-                              <tr key={leave.id}>
-                                <td>{leave.user.email}</td>
-                                <td>{leave.category || 'N/A'}</td>
-                                <td>
-                                  {format(new Date(leave.startDate), 'MMM dd')} -{' '}
-                                  {format(new Date(leave.endDate), 'MMM dd')}
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
+    @GetMapping("/pending")
+    public Page<LeaveRequest> getPendingLeaves(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        logger.info("Fetching pending leaves, page: {}, size: {}", page, size);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<LeaveRequest> allLeaves = leaveService.getAllLeaveHistory(pageable);
+        List<LeaveRequest> pendingLeaves = allLeaves.getContent().stream()
+                .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
+                .collect(Collectors.toList());
+        return new PageImpl<>(pendingLeaves, pageable, allLeaves.getTotalElements());
+    }
 
-          <div className="col-md-6 col-lg-4">
-            <div className="card shadow-sm h-100">
-              <div className="card-header bg-success text-white">
-                <h5 className="mb-0">Leave Categories</h5>
-              </div>
-              <div className="card-body">
-                {appliedLeaves.length > 0 ? (
-                  <Bar data={chartData} options={chartOptions} />
-                ) : (
-                  <p className="text-muted">No data to display</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+    @PutMapping("/approve/{leaveId}")
+    public LeaveRequest approveLeave(@PathVariable Long leaveId, HttpServletRequest request) {
+        return leaveService.approveLeave(leaveId, request);
+    }
 
-        <div className="mt-4 d-flex flex-wrap gap-2">
-          <a href="/apply-leave" className="btn btn-primary">Add New User</a>
-          <a href="/approval" className="btn btn-success">Approve Leaves</a>
-          <a href="/history" className="btn btn-info">View History</a>
-        </div>
-      </main>
-    </div>
-  );
-};
+    @PutMapping("/reject/{leaveId}")
+    public LeaveRequest rejectLeave(@PathVariable Long leaveId, HttpServletRequest request) {
+        return leaveService.rejectLeave(leaveId, request);
+    }
 
-export default Dashboard;
+    @DeleteMapping("/{leaveId}")
+    public void cancelLeave(@PathVariable Long leaveId, HttpServletRequest request) {
+        logger.info("Cancelling leave request with ID: {}", leaveId);
+        leaveService.cancelLeave(leaveId, request);
+    }
+
+    @GetMapping("/applied")
+    public List<LeaveRequest> getLeavesByDateRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        logger.info("Fetching leave applications for admin: {} between {} and {}", email, startDate, endDate);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+        
+        if (!user.getRole().equals(Role.ADMIN)) {
+//        	logger.info("user role for {}:{}",email,user.getRole());
+            logger.error("User {} is not authorized to access all leave applications", email);
+            throw new LeaveValidationException("Only admins can access all leave applications");
+        }
+        return leaveService.getLeavesByDateRange(startDate, endDate);
+    }
+}
