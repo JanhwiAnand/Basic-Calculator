@@ -1,21 +1,915 @@
-//error from spring boot
-security.web.FilterChainProxy        : Secured GET /api/leaves/pending?page=0&size=10
-2025-06-01T11:53:20.954+05:30 DEBUG 20256 --- [nio-8080-exec-2] o.s.security.web.FilterChainProxy        : Secured GET /api/leaves/applied?startDate=2025-05-01&endDate=2025-06-01
-2025-06-01T11:53:20.982+05:30  INFO 20256 --- [nio-8080-exec-3] c.e.ems.controller.LeaveController       : Fetching pending leaves, page: 0, size: 10
-2025-06-01T11:53:20.986+05:30  INFO 20256 --- [nio-8080-exec-3] c.example.ems.service.LeaveServiceImpl   : Fetching all leave history
-2025-06-01T11:53:21.000+05:30  INFO 20256 --- [nio-8080-exec-2] c.e.ems.controller.LeaveController       : Fetching leave applications for admin: admin@infinite.com between 2025-05-01 and 2025-06-01
-Hibernate: select u1_0.id,u1_0.city,u1_0.country,u1_0.date_of_joining,u1_0.department,u1_0.email,u1_0.firstname,u1_0.lastname,u1_0.password,u1_0.phnno,u1_0.role,u1_0.state from user u1_0 where u1_0.email=?
+const asyncHandler = require('express-async-handler');
+const axios = require('axios');
+const constants = require('../utils/constants');
+const env = require('../config/env');
+const { handleAxiosError } = require('../utils/errorHandler');
+const CustomError = require('../utils/customError');
+
+const applyLeave = asyncHandler(async (req, res) => {
+  const { employeeEmail, startDate, endDate, reason } = req.body;
+  try {
+    const response = await axios.post(`${env.SPRING_BOOT_API}/api/leaves/apply`, {
+      employeeEmail,
+      startDate,
+      endDate,
+      reason,
+    }, {
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(constants.status.CREATED).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const getCurrentLeaves = asyncHandler(async (req, res) => {
+  const {employeeEmail,page,size} = req.query;
+  console.log('Request is comng')
+  console.log(req.query)
+  try{
+    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/current`, {
+      params: {employeeEmail,page, size},
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(constants.status.OK).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const getPendingLeaves = asyncHandler(async (req, res) => {
+  const { page, size} = req.query;
+  try {
+    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/pending`, {
+      params: { page, size },
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(constants.status.OK).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+const getLeavesByDateRange = asyncHandler(async (req, res) => {
+  const { startDate, endDate } = req.query;
+  try {
+    if (!startDate || !endDate) {
+      throw new CustomError('startDate and endDate are required', constants.status.BAD_REQUEST);
+    }
+    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/applied`, {
+      params: { startDate, endDate },
+      headers: { Authorization: req.headers.authorization },
+    });
+    console.log(req.headers.authorization)
+    res.status(constants.status.OK).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const approveLeave = asyncHandler(async (req, res) => {
+  const { leaveId } = req.params;
+  try {
+    const response = await axios.put(`${env.SPRING_BOOT_API}/api/leaves/approve/${leaveId}`,null, {
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(200).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const rejectLeave = asyncHandler(async (req, res) => {
+  const { leaveId } = req.params;
+  const { declineReason } = req.body;
+  try {
+    const response = await axios.put(`${env.SPRING_BOOT_API}/api/leaves/reject/${leaveId}`, {
+      declineReason},{headers: { Authorization: req.headers.authorization }}
+    );
+    res.status(constants.status.OK).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const cancelLeave = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    console.log(`Cancel leave request received for leaveId: ${id}`);
+    console.log(`Forwarding DELETE request to Spring Boot: ${env.SPRING_BOOT_API}/api/leaves/${id}`);
+    try {
+        if (!id || isNaN(id) || parseInt(id) <= 0) {
+            throw new CustomError('Leave ID must be a positive integer', constants.status.BAD_REQUEST);
+        }
+        if (!req.headers.authorization) {
+            throw new CustomError('Authorization header missing', constants.status.UNAUTHORIZED);
+        }
+        const response = await axios.delete(`${env.SPRING_BOOT_API}/api/leaves/${id}`, {
+            headers: { Authorization: req.headers.authorization },
+        });
+        console.log(`Spring Boot response: ${response.status}`, response.data);
+        res.status(response.status).json(response.data || { message: 'Leave cancelled successfully' });
+    } catch (error) {
+        console.log('Error while forwarding to Spring Boot:', error.message);
+        handleAxiosError(error, res);
+    }
+});
+
+const getLeaveHistory = asyncHandler(async (req, res) => {
+  const {  year, page = 0, size = 10, sortBy, direction } = req.query;
+ 
+  try {
+    if (!req.headers.authorization) {
+      throw new CustomError('Authorization header missing', constants.status.UNAUTHORIZED);
+    }
+    const response = await axios.get(`${env.SPRING_BOOT_API}/api/leaves/history`, {
+      params: { year, page, size, sortBy, direction }, // Added year to params
+      headers: { Authorization: req.headers.authorization },
+    });
+    console.log(`Spring Boot response: ${response.status}`, response.data);
+    res.status(constants.status.OK).json(response.data);
+  } catch (error) {
+    console.log('Error fetching leave history:', error.message);
+    handleAxiosError(error, res);
+  }
+});
+
+module.exports = {
+  applyLeave,
+  cancelLeave,
+  getCurrentLeaves,
+  getPendingLeaves,
+  approveLeave,
+  rejectLeave,
+  getLeaveHistory,
+  getLeavesByDateRange, // Added this
+};const initialState = {
+  appliedLeaves: [],
+  currentLeaves: [],
+  pendingLeaves: [],
+  appliedLeavesByDateRange: [], // Add this
+  leaveHistory: { content: [] },
+  leaveBalances: { SICK: 10, CASUAL: 15, PAID: 20 },
+  loading: false,
+  error: null,
+};
+
+const leaveReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case 'FETCH_LEAVES_REQUEST':
+    case 'APPLY_LEAVE_REQUEST':
+    case 'FETCH_HISTORY_REQUEST':
+    case 'CANCEL_LEAVE_REQUEST':
+    case 'APPROVE_LEAVE_REQUEST':
+    case 'DECLINE_LEAVE_REQUEST':
+    case 'FETCH_PENDING_LEAVES_REQUEST':
+    case 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_REQUEST': // Add this
+      return { ...state, loading: true, error: null };
+
+    case 'FETCH_LEAVES_SUCCESS':
+      return { ...state, currentLeaves: action.payload, loading: false };
+
+    case 'APPLY_LEAVE_SUCCESS':
+      return { ...state, appliedLeaves: [...state.appliedLeaves, action.payload], loading: false };
+
+    case 'FETCH_HISTORY_SUCCESS':
+      return { ...state, leaveHistory: action.payload || { content: [] }, loading: false };
+
+    case 'CANCEL_LEAVE_SUCCESS':
+      return {
+        ...state,
+        appliedLeaves: state.appliedLeaves.filter(leave => leave.id !== action.payload),
+        currentLeaves: state.currentLeaves.filter(leave => leave.id !== action.payload),
+        loading: false,
+      };
+
+    case 'APPROVE_LEAVE_SUCCESS':
+    case 'DECLINE_LEAVE_SUCCESS':
+      return {
+        ...state,
+        currentLeaves: state.currentLeaves.filter(leave => leave.id !== action.payload.id),
+        pendingLeaves: state.pendingLeaves.filter(leave => leave.id !== action.payload.id),
+        loading: false,
+      };
+
+    case 'FETCH_PENDING_LEAVES_SUCCESS':
+      return { ...state, pendingLeaves: action.payload, loading: false };
+
+    case 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_SUCCESS': // Add this
+      return { ...state, appliedLeavesByDateRange: action.payload, loading: false };
+
+    case 'FETCH_LEAVES_FAILURE':
+    case 'APPLY_LEAVE_FAILURE':
+    case 'FETCH_HISTORY_FAILURE':
+    case 'CANCEL_LEAVE_FAILURE':
+    case 'APPROVE_LEAVE_FAILURE':
+    case 'DECLINE_LEAVE_FAILURE':
+    case 'FETCH_PENDING_LEAVES_FAILURE':
+    case 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_FAILURE': // Add this
+      return { ...state, error: action.payload, loading: false };
+
+    default:
+      return state;
+  }
+};
+
+export default leaveReducer;
+import axios from 'axios';
+
+export const APPLY_LEAVE_REQUEST = 'APPLY_LEAVE_REQUEST';
+export const APPLY_LEAVE_SUCCESS = 'APPLY_LEAVE_SUCCESS';
+export const APPLY_LEAVE_FAILURE = 'APPLY_LEAVE_FAILURE';
+export const FETCH_PENDING_LEAVES_REQUEST = 'FETCH_PENDING_LEAVES_REQUEST';
+export const FETCH_PENDING_LEAVES_SUCCESS = 'FETCH_PENDING_LEAVES_SUCCESS';
+export const FETCH_PENDING_LEAVES_FAILURE = 'FETCH_PENDING_LEAVES_FAILURE';
+export const FETCH_LEAVES_REQUEST = 'FETCH_LEAVES_REQUEST';
+export const FETCH_LEAVES_SUCCESS = 'FETCH_LEAVES_SUCCESS';
+export const FETCH_LEAVES_FAILURE = 'FETCH_LEAVES_FAILURE';
+export const FETCH_HISTORY_REQUEST = 'FETCH_HISTORY_REQUEST';
+export const FETCH_HISTORY_SUCCESS = 'FETCH_HISTORY_SUCCESS';
+export const FETCH_HISTORY_FAILURE = 'FETCH_HISTORY_FAILURE';
+export const CANCEL_LEAVE_REQUEST = 'CANCEL_LEAVE_REQUEST';
+export const CANCEL_LEAVE_SUCCESS = 'CANCEL_LEAVE_SUCCESS';
+export const CANCEL_LEAVE_FAILURE = 'CANCEL_LEAVE_FAILURE';
+export const APPROVE_LEAVE_REQUEST = 'APPROVE_LEAVE_REQUEST';
+export const APPROVE_LEAVE_SUCCESS = 'APPROVE_LEAVE_SUCCESS';
+export const APPROVE_LEAVE_FAILURE = 'APPROVE_LEAVE_FAILURE';
+export const DECLINE_LEAVE_REQUEST = 'DECLINE_LEAVE_REQUEST';
+export const DECLINE_LEAVE_SUCCESS = 'DECLINE_LEAVE_SUCCESS';
+export const DECLINE_LEAVE_FAILURE = 'DECLINE_LEAVE_FAILURE';
+export const FETCH_APPLIED_LEAVES_BY_DATE_RANGE_REQUEST = 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_REQUEST';
+export const FETCH_APPLIED_LEAVES_BY_DATE_RANGE_SUCCESS = 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_SUCCESS';
+export const FETCH_APPLIED_LEAVES_BY_DATE_RANGE_FAILURE = 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_FAILURE';
+
+export const applyLeave = (leaveData, token) => async dispatch => {
+  dispatch({ type: APPLY_LEAVE_REQUEST });
+  try {
+    const response = await axios.post('http://localhost:5000/api/leaves/apply', leaveData, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: APPLY_LEAVE_SUCCESS, payload: response.data });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || 'Failed to apply leave';
+    dispatch({ type: APPLY_LEAVE_FAILURE, payload: message });
+    throw error;
+  }
+};
+
+export const fetchPendingLeaves = (token, page = 0, size = 10) => async dispatch => {
+  dispatch({ type: FETCH_PENDING_LEAVES_REQUEST });
+  try {
+    const response = await axios.get('http://localhost:5000/api/leaves/pending', {
+      params: { page, size },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: FETCH_PENDING_LEAVES_SUCCESS, payload: response.data.content });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] ||'Failed to fetch pending leaves';
+    dispatch({ type: FETCH_PENDING_LEAVES_FAILURE, payload: message });
+    throw error;
+  }
+};
+
+export const fetchCurrentLeaves = (token, page = 0, size = 10) => async dispatch => {
+  dispatch({ type: FETCH_LEAVES_REQUEST });
+  try {
+    const response = await axios.get('http://localhost:5000/api/leaves/current', {
+      params: { page, size },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: FETCH_LEAVES_SUCCESS, payload: response.data.content });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] ||'Failed to fetch leaves';
+    dispatch({ type: FETCH_LEAVES_FAILURE, payload: message });
+    throw error;
+  }
+};
+
+export const fetchLeaveHistory = (token, year, page = 0, size = 10) => async dispatch => {
+  dispatch({ type: FETCH_HISTORY_REQUEST });
+  try {
+    const response = await axios.get('http://localhost:5000/api/leaves/history', {
+      params: { year, page, size },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: FETCH_HISTORY_SUCCESS, payload: response.data });
+  } catch (error) {
+    const message = error.response?.data?.error || error.message || 'Failed to fetch history';
+    dispatch({ type: FETCH_HISTORY_FAILURE, payload: message });
+    throw error;
+  }
+};
+
+export const cancelLeave = (leaveId, token) => async dispatch => {
+  dispatch({ type: CANCEL_LEAVE_REQUEST });
+  try {
+    await axios.delete(`http://localhost:5000/api/leaves/${leaveId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: CANCEL_LEAVE_SUCCESS, payload: leaveId });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] ||'Failed to cancel leave';
+    dispatch({ type: CANCEL_LEAVE_FAILURE, payload: message });
+    throw error;
+  }
+};
+
+export const approveLeave = (leaveId, token) => async dispatch => {
+  dispatch({ type: APPROVE_LEAVE_REQUEST });
+  try {
+    await axios.put(`http://localhost:5000/api/leaves/approve/${leaveId}`, null, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: APPROVE_LEAVE_SUCCESS, payload: { id: leaveId } });
+    dispatch(fetchPendingLeaves(token));
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || 'Failed to approve leave';
+    dispatch({ type: APPROVE_LEAVE_FAILURE, payload: message });
+    dispatch(fetchPendingLeaves(token));
+    throw error;
+  }
+};
+
+export const declineLeave = (leaveId, reason, token) => async dispatch => {
+  dispatch({ type: DECLINE_LEAVE_REQUEST });
+  try {
+    await axios.put(`http://localhost:5000/api/leaves/reject/${leaveId}`, { declineReason: reason }, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: DECLINE_LEAVE_SUCCESS, payload: { id: leaveId } });
+    dispatch(fetchPendingLeaves(token));
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || error.response?.data?.message ||'Failed to decline leave';
+    dispatch({ type: DECLINE_LEAVE_FAILURE, payload: message });
+    dispatch(fetchPendingLeaves(token));
+    throw error;
+  }
+};
+
+export const fetchAppliedLeavesByDateRange = (startDate, endDate, token) => async dispatch => {
+  dispatch({ type: FETCH_APPLIED_LEAVES_BY_DATE_RANGE_REQUEST });
+  try {
+    const response = await axios.get('http://localhost:5000/api/leaves/applied', {
+      params: { startDate, endDate },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    
+    dispatch({ type: FETCH_APPLIED_LEAVES_BY_DATE_RANGE_SUCCESS, payload: response.data });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] ||'Failed to fetch applied leaves';
+    dispatch({ type: FETCH_APPLIED_LEAVES_BY_DATE_RANGE_FAILURE, payload: message });
+    throw error;
+  }
+};import { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchAppliedLeavesByDateRange, fetchPendingLeaves } from '../redux/actions/leaveActions';
+import { getToken, getUser, getAppliedLeavesByDateRange, getPendingLeaves, getLeaveLoading, getLeaveError } from '../redux/selectors';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { format } from 'date-fns';
+import { Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+
+const Dashboard = () => {
+  const dispatch = useDispatch();
+  const token = useSelector(getToken);
+  const user = useSelector(getUser);
+  const appliedLeaves = useSelector(getAppliedLeavesByDateRange);
+  const pendingLeaves = useSelector(getPendingLeaves);
+  const loading = useSelector(getLeaveLoading);
+  const error = useSelector(getLeaveError);
+
+  const [dateRange, setDateRange] = useState(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setMonth(end.getMonth() - 1);
+    return [start, end];
+  });
+  const [startDate, endDate] = dateRange;
+
+  useEffect(() => {
+    if (token && user?.role === 'ADMIN') {
+      const formattedStartDate = startDate ? format(startDate, 'yyyy-MM-dd') : '';
+      const formattedEndDate = endDate ? format(endDate, 'yyyy-MM-dd') : '';
+      dispatch(fetchAppliedLeavesByDateRange(formattedStartDate, formattedEndDate, token));
+      dispatch(fetchPendingLeaves(token));
+    }
+  }, [dispatch, token, user?.role, startDate, endDate]);
+
+  const categoryCounts = appliedLeaves.reduce((acc, leave) => {
+    acc[leave.category] = (acc[leave.category] || 0) + 1;
+    return acc;
+  }, {});
+  const chartData = {
+    labels: Object.keys(categoryCounts),
+    datasets: [
+      {
+        label: 'Leave Applications by Category',
+        data: Object.values(categoryCounts),
+        backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1'],
+        borderColor: ['#FF6B6B', '#4ECDC4', '#45B7D1'],
+        borderWidth: 1,
+      },
+    ],
+  };
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: { position: 'top' },
+      title: { display: true, text: 'Leave Applications by Category' },
+    },
+  };
+
+  return (
+    <div className="container-fluid min-vh-100 bg-light">
+      <header className="bg-primary text-white p-4 shadow mb-4">
+        <div className="container">
+          <div className="d-flex justify-content-between align-items-center">
+            <h1 className="h3 mb-0">Admin Dashboard</h1>
+            <div>
+              <span className="me-3">Welcome, {user?.email}</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="container">
+        {error && (
+          <div className="alert alert-danger" role="alert">
+            {error}
+          </div>
+        )}
+
+        <div className="row g-4">
+          <div className="col-md-6 col-lg-4">
+            <div className="card shadow-sm h-100">
+              <div className="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h5 className="mb-0">Leave Applications</h5>
+                <div>
+                  <DatePicker
+                    selectsRange={true}
+                    startDate={startDate}
+                    endDate={endDate}
+                    onChange={(update) => setDateRange(update)}
+                    className="form-control form-control-sm"
+                    placeholderText="Select date range"
+                  />
+                </div>
+              </div>
+              <div className="card-body">
+                {loading ? (
+                  <p className="text-muted">Loading...</p>
+                ) : (
+                  <>
+                    <h2 className="card-title text-info">{appliedLeaves.length}</h2>
+                    <p className="text-muted">
+                      Applications from {startDate && format(startDate, 'MMM dd, yyyy')} to{' '}
+                      {endDate && format(endDate, 'MMM dd, yyyy')}
+                    </p>
+                    <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      <table className="table table-sm table-striped">
+                        <thead>
+                          <tr>
+                            <th>Email</th>
+                            <th>Category</th>
+                            <th>Dates</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {appliedLeaves.length === 0 ? (
+                            <tr>
+                              <td colSpan="4" className="text-center">No leave applications</td>
+                            </tr>
+                          ) : (
+                            appliedLeaves.map(leave => (
+                              <tr key={leave.id}>
+                                <td>{leave.user.email}</td>
+                                <td>{leave.category || 'N/A'}</td>
+                                <td>
+                                  {format(new Date(leave.startDate), 'MMM dd')} -{' '}
+                                  {format(new Date(leave.endDate), 'MMM dd')}
+                                </td>
+                                <td>{leave.status}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="col-md-6 col-lg-4">
+            <div className="card shadow-sm h-100">
+              <div className="card-header bg-warning text-white">
+                <h5 className="mb-0">Pending Leaves</h5>
+              </div>
+              <div className="card-body">
+                {loading ? (
+                  <p className="text-muted">Loading...</p>
+                ) : (
+                  <>
+                    <h2 className="card-title text-warning">{pendingLeaves.length}</h2>
+                    <p className="text-muted">Leaves awaiting approval</p>
+                    <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      <table className="table table-sm table-striped">
+                        <thead>
+                          <tr>
+                            <th>Email</th>
+                            <th>Category</th>
+                            <th>Dates</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pendingLeaves.length === 0 ? (
+                            <tr>
+                              <td colSpan="3" className="text-center">No pending leaves</td>
+                            </tr>
+                          ) : (
+                            pendingLeaves.map(leave => (
+                              <tr key={leave.id}>
+                                <td>{leave.user.email}</td>
+                                <td>{leave.category || 'N/A'}</td>
+                                <td>
+                                  {format(new Date(leave.startDate), 'MMM dd')} -{' '}
+                                  {format(new Date(leave.endDate), 'MMM dd')}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="col-md-6 col-lg-4">
+            <div className="card shadow-sm h-100">
+              <div className="card-header bg-success text-white">
+                <h5 className="mb-0">Leave Categories</h5>
+              </div>
+              <div className="card-body">
+                {appliedLeaves.length > 0 ? (
+                  <Bar data={chartData} options={chartOptions} />
+                ) : (
+                  <p className="text-muted">No data to display</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 d-flex flex-wrap gap-2">
+          <a href="/apply-leave" className="btn btn-primary">Add New User</a>
+          <a href="/approval" className="btn btn-success">Approve Leaves</a>
+          <a href="/history" className="btn btn-info">View History</a>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Dashboard;package com.example.ems.controller;
+
+import com.example.ems.dto.LeaveRequestDto;
+import com.example.ems.entity.LeaveRequest;
+import com.example.ems.entity.User;
+import com.example.ems.enums.LeaveStatus;
+import com.example.ems.exception.LeaveValidationException;
+import com.example.ems.exception.ResourceNotFoundException;
+import com.example.ems.service.LeaveService;
+import com.example.ems.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api/leaves")
+public class LeaveController {
+    private static final Logger logger = LoggerFactory.getLogger(LeaveController.class);
+    private final LeaveService leaveService;
+    private final UserRepository userRepository; // Add this
+
+    public LeaveController(LeaveService leaveService, UserRepository userRepository) {
+        this.leaveService = leaveService;
+        this.userRepository = userRepository;
+    }
+
+    @PostMapping("/apply")
+    public LeaveRequest applyLeave(@Valid @RequestBody LeaveRequestDto leaveRequestDto, HttpServletRequest request) {
+        logger.info("Received leave request with employeeEmail: {}", leaveRequestDto.employeeEmail());
+        return leaveService.applyLeave(leaveRequestDto, request);
+    }
+
+    @GetMapping("/history")
+    public Page<LeaveRequest> getLeaveHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Integer year,
+            HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        Pageable pageable = PageRequest.of(page, size);
+        return leaveService.getLeaveHistory(email, pageable, year);
+    }
+
+    @GetMapping("/all")
+    public Page<LeaveRequest> getAllLeaveHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return leaveService.getAllLeaveHistory(pageable);
+    }
+
+    @GetMapping("/current")
+    public Page<LeaveRequest> getCurrentLeaves(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        if (email == null) {
+            logger.error("Token email is null in getCurrentLeaves");
+            throw new LeaveValidationException("Authentication token is invalid or missing");
+        }
+        logger.info("Fetching current leaves for user: {}", email);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<LeaveRequest> history = leaveService.getLeaveHistory(email, pageable, null);
+        List<LeaveRequest> currentLeaves = history.getContent().stream()
+                .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
+                .collect(Collectors.toList());
+        return new PageImpl<>(currentLeaves, pageable, history.getTotalElements());
+    }
+
+    @GetMapping("/pending")
+    public Page<LeaveRequest> getPendingLeaves(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        logger.info("Fetching pending leaves, page: {}, size: {}", page, size);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<LeaveRequest> allLeaves = leaveService.getAllLeaveHistory(pageable);
+        List<LeaveRequest> pendingLeaves = allLeaves.getContent().stream()
+                .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
+                .collect(Collectors.toList());
+        return new PageImpl<>(pendingLeaves, pageable, allLeaves.getTotalElements());
+    }
+
+    @PutMapping("/approve/{leaveId}")
+    public LeaveRequest approveLeave(@PathVariable Long leaveId, HttpServletRequest request) {
+        return leaveService.approveLeave(leaveId, request);
+    }
+
+    @PutMapping("/reject/{leaveId}")
+    public LeaveRequest rejectLeave(@PathVariable Long leaveId, HttpServletRequest request) {
+        return leaveService.rejectLeave(leaveId, request);
+    }
+
+    @DeleteMapping("/{leaveId}")
+    public void cancelLeave(@PathVariable Long leaveId, HttpServletRequest request) {
+        logger.info("Cancelling leave request with ID: {}", leaveId);
+        leaveService.cancelLeave(leaveId, request);
+    }
+
+    @GetMapping("/applied")
+    public List<LeaveRequest> getLeavesByDateRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        logger.info("Fetching leave applications for admin: {} between {} and {}", email, startDate, endDate);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+        if (!user.getRole().equals("ADMIN")) {
+            logger.error("User {} is not authorized to access all leave applications", email);
+            throw new LeaveValidationException("Only admins can access all leave applications");
+        }
+        return leaveService.getLeavesByDateRange(startDate, endDate);
+    }
+}
+package com.example.ems.service;
+
+import com.example.ems.dto.LeaveRequestDto;
+import com.example.ems.entity.LeaveRequest;
+import com.example.ems.enums.LeaveStatus;
+import com.example.ems.entity.User;
+import com.example.ems.exception.LeaveValidationException;
+import com.example.ems.exception.ResourceNotFoundException;
+import com.example.ems.repository.LeaveRequestRepository;
+import com.example.ems.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class LeaveServiceImpl implements LeaveService {
+    private final LeaveRequestRepository leaveRequestRepository;
+    private final UserRepository userRepository;
+    private static final Logger logger = LoggerFactory.getLogger(LeaveServiceImpl.class);
+    private static final int MAX_LEAVE_DAYS = 20;
+
+    @Override
+    public LeaveRequest applyLeave(LeaveRequestDto dto, HttpServletRequest request) {
+        String email = dto.employeeEmail();
+        String tokenEmail = (String) request.getAttribute("email");
+
+        logger.info("Applying leave for user email: {}. Token email: {}", email, tokenEmail);
+
+        if (email == null || email.trim().isEmpty()) {
+            logger.error("Employee email cannot be null or empty");
+            throw new LeaveValidationException("Employee email cannot be null or empty");
+        }
+        if (tokenEmail == null) {
+            logger.error("Token email is null");
+            throw new LeaveValidationException("Authentication token is invalid or missing");
+        }
+
+        if (!email.equals(tokenEmail)) {
+            logger.error("Email mismatch: DTO email {} does not match token email {}", email, tokenEmail);
+            throw new LeaveValidationException("You can only apply leave for your own account");
+        }
+
+        if (dto.startDate().isAfter(dto.endDate())) {
+            logger.error("Start date {} is after end date {}", dto.startDate(), dto.endDate());
+            throw new LeaveValidationException("Start date must be before or equal to end date");
+        }
+
+        if (dto.startDate().isBefore(LocalDate.now())) {
+            logger.error("Start date {} is in the past", dto.startDate());
+            throw new LeaveValidationException("Start date cannot be in the past");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> {
+                    logger.error("User not found with email: {}", email);
+                    return new ResourceNotFoundException("User not found with email: " + email);
+                });
+
+        var overlappingLeaves = leaveRequestRepository.findOverlappingLeaves(
+                email, dto.startDate(), dto.endDate());
+        if (!overlappingLeaves.isEmpty()) {
+            logger.error("Leave overlaps with existing approved leave for user: {}", email);
+            throw new LeaveValidationException("Leave overlaps with existing approved leave");
+        }
+
+        int year = dto.startDate().getYear();
+        Long leaveDays = leaveRequestRepository.calculateLeaveDays(email, year);
+        long newLeaveDays = ChronoUnit.DAYS.between(dto.startDate(), dto.endDate()) + 1;
+        long totalLeaveDays = (leaveDays != null ? leaveDays : 0) + newLeaveDays;
+
+        if (totalLeaveDays > MAX_LEAVE_DAYS) {
+            logger.error("Maximum leave limit of {} days exceeded for user: {}", MAX_LEAVE_DAYS, email);
+            throw new LeaveValidationException("Maximum leave limit of " + MAX_LEAVE_DAYS + " days exceeded");
+        }
+
+        LeaveRequest leaveRequest = new LeaveRequest();
+        leaveRequest.setUser(user);
+        leaveRequest.setStartDate(dto.startDate());
+        leaveRequest.setEndDate(dto.endDate());
+        leaveRequest.setReason(dto.reason());
+        leaveRequest.setCategory(dto.category()); // Add this
+        leaveRequest.setStatus(LeaveStatus.PENDING);
+
+        logger.info("Saving leave request for user: {}", email);
+        return leaveRequestRepository.save(leaveRequest);
+    }
+
+    @Override
+    public Page<LeaveRequest> getLeaveHistory(String email, Pageable pageable, Integer year) {
+        logger.info("Fetching leave history for user: {} with year: {}", email, year);
+        Page<LeaveRequest> leaveRequests = leaveRequestRepository.findByUserEmailOrderByStartDateDesc(email, pageable);
+        if (year != null) {
+            List<LeaveRequest> filteredLeaves = leaveRequests.getContent().stream()
+                    .filter(leave -> leave.getStartDate().getYear() == year)
+                    .collect(Collectors.toList());
+            return new PageImpl<>(filteredLeaves, pageable, filteredLeaves.size());
+        }
+        return leaveRequests;
+    }
+
+    @Override
+    public Page<LeaveRequest> getAllLeaveHistory(Pageable pageable) {
+        logger.info("Fetching all leave history");
+        return leaveRequestRepository.findAll(pageable);
+    }
+
+    @Override
+    public LeaveRequest approveLeave(Long leaveId, HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        logger.info("Approving leave ID: {} by admin: {}", leaveId, email);
+
+        LeaveRequest leaveRequest = leaveRequestRepository.findById(leaveId)
+                .orElseThrow(() -> {
+                    logger.error("Leave request not found with ID: {}", leaveId);
+                    return new ResourceNotFoundException("Leave request not found with ID: " + leaveId);
+                });
+
+        if (leaveRequest.getStatus() != LeaveStatus.PENDING) {
+            logger.error("Only PENDING leaves can be approved, current status: {}", leaveRequest.getStatus());
+            throw new LeaveValidationException("Only PENDING leaves can be approved");
+        }
+
+        leaveRequest.setStatus(LeaveStatus.APPROVED);
+        return leaveRequestRepository.save(leaveRequest);
+    }
+
+    @Override
+    public LeaveRequest rejectLeave(Long leaveId, HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        logger.info("Rejecting leave ID: {} by admin: {}", leaveId, email);
+
+        LeaveRequest leaveRequest = leaveRequestRepository.findById(leaveId)
+                .orElseThrow(() -> {
+                    logger.error("Leave request not found with ID: {}", leaveId);
+                    return new ResourceNotFoundException("Leave request not found with ID: " + leaveId);
+                });
+
+        if (leaveRequest.getStatus() != LeaveStatus.PENDING) {
+            logger.error("Only PENDING leaves can be rejected, current status: {}", leaveRequest.getStatus());
+            throw new LeaveValidationException("Only PENDING leaves can be rejected");
+        }
+
+        leaveRequest.setStatus(LeaveStatus.REJECTED);
+        return leaveRequestRepository.save(leaveRequest);
+    }
+
+    @Override
+    public void cancelLeave(Long leaveId, HttpServletRequest request) {
+        String email = (String) request.getAttribute("email");
+        logger.info("Cancelling leave ID: {} by user: {}", leaveId, email);
+
+        LeaveRequest leaveRequest = leaveRequestRepository.findById(leaveId)
+                .orElseThrow(() -> {
+                    logger.error("Leave request not found with ID: {}", leaveId);
+                    return new ResourceNotFoundException("Leave request not found with ID: " + leaveId);
+                });
+
+        if (!leaveRequest.getUser().getEmail().equals(email)) {
+            logger.error("User {} is not authorized to cancel leave ID: {}", email, leaveId);
+            throw new LeaveValidationException("You can only cancel your own leave requests");
+        }
+
+        if (leaveRequest.getStatus() != LeaveStatus.PENDING) {
+            logger.error("Only PENDING leaves can be cancelled, current status: {}", leaveRequest.getStatus());
+            throw new LeaveValidationException("Only PENDING leaves can be cancelled");
+        }
+
+        leaveRequest.setStatus(LeaveStatus.CANCELLED);
+        leaveRequestRepository.save(leaveRequest);
+        logger.info("Leave request ID: {} cancelled successfully", leaveId);
+    }
+
+    @Override
+    public List<LeaveRequest> getLeavesByDateRange(LocalDate startDate, LocalDate endDate) {
+        logger.info("Fetching leave applications between {} and {}", startDate, endDate);
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(23, 59, 59);
+        return leaveRequestRepository.findByCreatedAtBetween(start, end);
+    }
+}
+error:-User admin@infinite.com is not authorized to access all leave applications
+2025-06-01T13:28:33.262+05:30 ERROR 20256 --- [nio-8080-exec-2] c.e.e.exception.GlobalExceptionHandler   : Leave validation error: Only admins can access all leave applications
 Hibernate: select lr1_0.id,lr1_0.category,lr1_0.created_at,lr1_0.end_date,lr1_0.reason,lr1_0.start_date,lr1_0.status,lr1_0.user_id from leave_request lr1_0 limit ?,?
-2025-06-01T11:53:21.025+05:30 ERROR 20256 --- [nio-8080-exec-2] c.e.ems.controller.LeaveController       : User admin@infinite.com is not authorized to access all leave applications
-2025-06-01T11:53:21.036+05:30 ERROR 20256 --- [nio-8080-exec-2] c.e.e.exception.GlobalExceptionHandler   : Leave validation error: Only admins can access all leave applications
-2025-06-01T11:53:21.042+05:30  WARN 20256 --- [nio-8080-exec-2] .m.m.a.ExceptionHandlerExceptionResolver : Resolved [com.example.ems.exception.LeaveValidationException: Only admins can access all leave applications]
-2025-06-01T11:53:21.066+05:30  WARN 20256 --- [nio-8080-exec-3] ration$PageModule$WarningLoggingModifier : Serializing PageImpl instances as-is is not supported, meaning that there is no guarantee about the stability of the resulting JSON structure!
-	For a stable JSON structure, please use Spring Data's PagedModel (globally via @EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO))
-	or Spring HATEOAS and Spring Data's PagedResourcesAssembler as documented in https://docs.spring.io/spring-data/commons/reference/repositories/core-extensions.html#core.web.pageables.
-//react side error:-
-Failed to load resource: the server responded with a status of 503 (Service Unavailable)
-:5000/api/leaves/applied?startDate=2025-05-01&endDate=2025-06-01:1 
-            
-            
-            Failed to load resource: the server responded with a status of 400 (Bad Request)
-leaveActions.js:146  Uncaught (in promise) 
+2025-06-01T13:28:33.264+05:30  WARN 20256 --- [nio-8080-exec-2] .m.m.a.ExceptionHandlerExceptionResolver : Resolved [com.example.ems.exception.LeaveValidationException: Only admins can access all leave applications]
+error:-
+Request failed with status code 400
+AxiosError: Request failed with status code 400
+    at settle (http://localhost:3000/static/js/bundle.js:10655:12)
+    at XMLHttpRequest.onloadend (http://localhost:3000/static/js/bundle.js:9282:66)
+    at Axios.request (http://localhost:3000/static/js/bundle.js:9781:41)
+    at async http://localhost:3000/static/js/bundle.js:83491:22leaveActions.js:136 
+ 
+ GET http://localhost:5000/api/leaves/applied?startDate=2025-05-01&endDate=2025-06-01 400 (Bad Request)
+[NEW] Explain Console errors by using Copilot in Edge: click 
+ to explain an error. Learn more
+Don't show again
+settle.js:19 
+ Uncaught (in promise) 
+AxiosError {message: 'Request failed with status code 400', name: 'AxiosError', code: 'ERR_BAD_REQUEST', config: {…}, request: XMLHttpRequest, …}
