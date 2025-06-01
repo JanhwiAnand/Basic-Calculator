@@ -1,65 +1,111 @@
-package com.example.ems.dto;
+ Secured POST /api/leaves/apply
+2025-06-01T15:13:18.458+05:30 ERROR 1648 --- [nio-8080-exec-3] c.e.e.exception.GlobalExceptionHandler   : Validation error: category: Category is required
+2025-06-01T15:13:18.471+05:30  WARN 1648 --- [nio-8080-exec-3] .m.m.a.ExceptionHandlerExceptionResolver : Resolved [org.springframework.web.bind.MethodArgumentNotValidException: Validation failed for argument [0] in public com.example.ems.entity.LeaveRequest com.example.ems.controller.LeaveController.applyLeave(com.example.ems.dto.LeaveRequestDto,jakarta.servlet.http.HttpServletRequest): [Field error in object 'leaveRequestDto' on field 'category': rejected value [null]; codes [NotBlank.leaveRequestDto.category,NotBlank.category,NotBlank.java.lang.String,NotBlank]; arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [leaveRequestDto.category,category]; arguments []; default message [category]]; default message [Category is required]] ]
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
-import java.time.LocalDate;
-
-public class LeaveRequestDto {
-
-    @NotBlank(message = "Employee email is required")
-    private String employeeEmail;
-
-    @NotNull(message = "Start date is required")
-    private LocalDate startDate;
-
-    @NotNull(message = "End date is required")
-    private LocalDate endDate;
-
-    @NotBlank(message = "Reason is required")
-    private String reason;
-
-    @NotBlank(message = "Category is required")
-    private String category;
-
-    // Getters and setters
-    public String getEmployeeEmail() {
-        return employeeEmail;
-    }
-
-    public void setEmployeeEmail(String employeeEmail) {
-        this.employeeEmail = employeeEmail;
-    }
-
-    public LocalDate getStartDate() {
-        return startDate;
-    }
-
-    public void setStartDate(LocalDate startDate) {
-        this.startDate = startDate;
-    }
-
-    public LocalDate getEndDate() {
-        return endDate;
-    }
-
-    public void setEndDate(LocalDate endDate) {
-        this.endDate = endDate;
-    }
-
-    public String getReason() {
-        return reason;
-    }
-
-    public void setReason(String reason) {
-        this.reason = reason;
-    }
-
-    public String getCategory() {
-        return category;
-    }
-
-    public void setCategory(String category) {
-        this.category = category;
-    }
-}
+POST http://localhost:5000/api/leaves/apply 400 (Bad Request)
+dispatchXhrRequest @ xhr.js:195
+xhr @ xhr.js:15
+dispatchRequest @ dispatchRequest.js:51
+_request @ Axios.js:187
+request @ Axios.js:40
+httpMethod @ Axios.js:226
+wrap @ bind.js:5
+(anonymous) @ leaveActions.js:31
+__webpack_modules__../node_modules/redux-thunk/dist/redux-thunk.mjs.middleware @ redux-thunk.mjs:5
+handleApply @ ApplyLeave.js:41
+executeDispatch @ react-dom-client.development.js:16368
+runWithFiberInDEV @ react-dom-client.development.js:1518
+processDispatchQueue @ react-dom-client.development.js:16417
+(anonymous) @ react-dom-client.development.js:17016
+batchedUpdates$1 @ react-dom-client.development.js:3262
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:16572
+dispatchEvent @ react-dom-client.development.js:20657
+dispatchDiscreteEvent @ react-dom-client.development.js:20625
+<button>
+(anonymous) @ react-jsx-dev-runtime.development.js:336
+ApplyLeave @ ApplyLeave.js:110
+react-stack-bottom-frame @ react-dom-client.development.js:23863
+renderWithHooks @ react-dom-client.development.js:5529
+updateFunctionComponent @ react-dom-client.development.js:8897
+beginWork @ react-dom-client.development.js:10522
+runWithFiberInDEV @ react-dom-client.development.js:1518
+performUnitOfWork @ react-dom-client.development.js:15130
+workLoopSync @ react-dom-client.development.js:14956
+renderRootSync @ react-dom-client.development.js:14936
+performWorkOnRoot @ react-dom-client.development.js:14417
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16216
+performWorkUntilDeadline @ scheduler.development.js:45
+<ApplyLeave>
+(anonymous) @ react-jsx-dev-runtime.development.js:336
+App @ App.js:42
+react-stack-bottom-frame @ react-dom-client.development.js:23863
+renderWithHooks @ react-dom-client.development.js:5529
+updateFunctionComponent @ react-dom-client.development.js:8897
+beginWork @ react-dom-client.development.js:10522
+runWithFiberInDEV @ react-dom-client.development.js:1518
+performUnitOfWork @ react-dom-client.development.js:15130
+workLoopSync @ react-dom-client.development.js:14956
+renderRootSync @ react-dom-client.development.js:14936
+performWorkOnRoot @ react-dom-client.development.js:14417
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16216
+performWorkUntilDeadline @ scheduler.development.js:45
+<App>
+(anonymous) @ react-jsx-dev-runtime.development.js:336
+./src/index.js @ index.js:10
+(anonymous) @ react refresh:37
+__webpack_require__ @ bootstrap:22
+(anonymous) @ startup:7
+(anonymous) @ startup:7
+[NEW] Explain Console errors by using Copilot in Edge: click
+         
+         to explain an error. 
+        Learn more
+        Don't show again
+ApplyLeave.js:50 AxiosError {message: 'Request failed with status code 400', name: 'AxiosError', code: 'ERR_BAD_REQUEST', config: {…}, request: XMLHttpRequest, …}
+ApplyLeave.js:51  Error applying leave: Something went wrong
+handleApply @ ApplyLeave.js:51
+await in handleApply
+executeDispatch @ react-dom-client.development.js:16368
+runWithFiberInDEV @ react-dom-client.development.js:1518
+processDispatchQueue @ react-dom-client.development.js:16417
+(anonymous) @ react-dom-client.development.js:17016
+batchedUpdates$1 @ react-dom-client.development.js:3262
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:16572
+dispatchEvent @ react-dom-client.development.js:20657
+dispatchDiscreteEvent @ react-dom-client.development.js:20625
+<button>
+(anonymous) @ react-jsx-dev-runtime.development.js:336
+ApplyLeave @ ApplyLeave.js:110
+react-stack-bottom-frame @ react-dom-client.development.js:23863
+renderWithHooks @ react-dom-client.development.js:5529
+updateFunctionComponent @ react-dom-client.development.js:8897
+beginWork @ react-dom-client.development.js:10522
+runWithFiberInDEV @ react-dom-client.development.js:1518
+performUnitOfWork @ react-dom-client.development.js:15130
+workLoopSync @ react-dom-client.development.js:14956
+renderRootSync @ react-dom-client.development.js:14936
+performWorkOnRoot @ react-dom-client.development.js:14417
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16216
+performWorkUntilDeadline @ scheduler.development.js:45
+<ApplyLeave>
+(anonymous) @ react-jsx-dev-runtime.development.js:336
+App @ App.js:42
+react-stack-bottom-frame @ react-dom-client.development.js:23863
+renderWithHooks @ react-dom-client.development.js:5529
+updateFunctionComponent @ react-dom-client.development.js:8897
+beginWork @ react-dom-client.development.js:10522
+runWithFiberInDEV @ react-dom-client.development.js:1518
+performUnitOfWork @ react-dom-client.development.js:15130
+workLoopSync @ react-dom-client.development.js:14956
+renderRootSync @ react-dom-client.development.js:14936
+performWorkOnRoot @ react-dom-client.development.js:14417
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16216
+performWorkUntilDeadline @ scheduler.development.js:45
+<App>
+(anonymous) @ react-jsx-dev-runtime.development.js:336
+./src/index.js @ index.js:10
+(anonymous) @ react refresh:37
+__webpack_require__ @ bootstrap:22
+(anonymous) @ startup:7
+(anonymous) @ startup:7
