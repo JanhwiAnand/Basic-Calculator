@@ -1,3 +1,62 @@
+package com.example.ems.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime; // Add this import
+
+import com.example.ems.enums.LeaveStatus;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
+@Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class LeaveRequest {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    @JsonBackReference
+    private User user;
+
+    private LocalDate startDate;
+
+    private LocalDate endDate;
+
+    private String reason;
+
+    @Enumerated(EnumType.STRING)
+    private LeaveStatus status;
+
+    @Column(name = "created_at", nullable = false) // Add this field
+    private LocalDateTime createdAt;
+
+    @Column(nullable = false) // Added this field
+    private String category;
+
+    @PrePersist // Automatically set createdAt before saving
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}package com.example.ems.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.time.LocalDate;
+
+public record LeaveRequestDto(
+        @NotBlank(message = "Employee email is required") String employeeEmail,
+        @NotNull(message = "Start date is required") LocalDate startDate,
+        @NotNull(message = "End date is required") LocalDate endDate,
+        @NotBlank(message = "Reason is required") String reason,
+        @NotBlank(message = "Category is required") String category
+        
+) {}
 export const applyLeave = (leaveData, token) => async dispatch => {
   dispatch({ type: APPLY_LEAVE_REQUEST });
   try {
@@ -10,135 +69,4 @@ export const applyLeave = (leaveData, token) => async dispatch => {
     dispatch({ type: APPLY_LEAVE_FAILURE, payload: message });
     throw error;
   }
-};import { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { applyLeave } from '../redux/actions/leaveActions';
-import { addUser } from '../redux/actions/userActions'; 
-import {
-  getToken,
-  getLeaveLoading,
-  getLeaveError,
-  getUser
-} from '../redux/selectors';
-
-const ApplyLeave = () => {
-  const dispatch = useDispatch();
-  const token = useSelector(getToken);
-  const user = useSelector(getUser);
-  const loading = useSelector(getLeaveLoading);
-  const error = useSelector(getLeaveError);
-
-
-
-  const [leaveData, setLeaveData] = useState({
-    category: '',
-    startDate: '',
-    endDate: '',
-    reason: '',
-  });
-
-  const handleLeaveChange = (e) => {
-    const { name, value } = e.target;
-    setLeaveData(prev => ({ ...prev, [name]: value }));
-  };
-
-
-  const handleApply = async () => {
-    try {
-      const leaveDataWithEmail = {
-        ...leaveData,
-        employeeEmail: user?.email || '',
-      };
-      await dispatch(applyLeave(leaveDataWithEmail, token));
-      alert('Leave applied successfully');
-      setLeaveData({
-        category: '',
-        startDate: '',
-        endDate: '',
-        reason: '',
-      });
-    } catch (error) {
-      console.error('Error applying leave:', error.message);
-      alert(`Failed to apply leave: ${error.message}`);
-    }
-  };
-
- 
-
-  return (
-    <div>
-        {
-      
-        <>
-          <h2 className="text-center mb-4">Apply Leave</h2>
-          <div className="card p-4">
-            <div className="mb-3">
-              <label className="form-label">Category</label>
-              <select
-                className="form-control"
-                name="category"
-                value={leaveData.category}
-                onChange={handleLeaveChange}
-                required
-              >
-                <option value="CATEGORY">Select Category</option>
-                <option value="SICK">Sick Leave</option>
-                <option value="CASUAL">Casual Leave</option>
-                <option value="ANNUAL">Annual Leave</option>
-              </select>
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Start Date</label>
-              <input
-                type="date"
-                className="form-control"
-                name="startDate"
-                value={leaveData.startDate}
-                onChange={handleLeaveChange}
-                required
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">End Date</label>
-              <input
-                type="date"
-                className="form-control"
-                name="endDate"
-                value={leaveData.endDate}
-                onChange={handleLeaveChange}
-                required
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Reason</label>
-              <textarea
-                className="form-control"
-                name="reason"
-                value={leaveData.reason}
-                onChange={handleLeaveChange}
-                required
-              />
-            </div>
-            <button
-              className="btn btn-primary me-2"
-              onClick={handleApply}
-              disabled={loading}
-            >
-              {loading ? 'Applying...' : 'Apply'}
-            </button>
-            {error && (
-              <div className="alert alert-danger mt-3" role="alert">
-                Error: {error}
-              </div>
-            )}
-          </div>
-         
-        </>
-          
-      }
-    
-    </div>
-  );
 };
-
-export default ApplyLeave;
