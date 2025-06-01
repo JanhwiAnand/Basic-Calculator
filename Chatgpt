@@ -9,9 +9,8 @@ import Profile from './components/Profile';
 import ErrorBoundary from './components/ErrorBoundary';
 import { getToken, getUser } from './redux/selectors';
 import './styles.css';
-import AddEmployeeForm from './components/AddUser';
-import Dashboard from './components/Dashboard';
 import AddEmployee from './components/AddUser';
+import Dashboard from './components/Dashboard';
 
 function App() {
   const token = useSelector(getToken);
@@ -28,7 +27,7 @@ function App() {
               path="/login"
               element={
                 token ? (
-                  <Navigate to={isAdmin ? "/add-employee" : "/apply-leave"} />
+                  <Navigate to={isAdmin ? "/dashboard" : "/apply-leave"} />
                 ) : (
                   <ErrorBoundary>
                     <Login />
@@ -53,20 +52,23 @@ function App() {
               element={
                 token && isAdmin ? (
                   <ErrorBoundary>
-                    <Dashboard/>
+                    <Dashboard />
                   </ErrorBoundary>
                 ) : (
                   <Navigate to={token ? "/profile" : "/login"} />
                 )
               }
             />
-            <Route path="/add-employee" element={token && user?.role==='ADMIN'?(
-              
-                <AddEmployee/>
-              ):(
-                <Navigate to={token ? "/apply-leave":"/login"}/>
-              )
-            }/>
+            <Route
+              path="/add-employee"
+              element={
+                token && user?.role === 'ADMIN' ? (
+                  <AddEmployee />
+                ) : (
+                  <Navigate to={token ? "/apply-leave" : "/login"} />
+                )
+              }
+            />
             <Route
               path="/approval"
               element={
