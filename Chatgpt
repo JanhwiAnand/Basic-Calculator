@@ -1,111 +1,237 @@
- Secured POST /api/leaves/apply
-2025-06-01T15:13:18.458+05:30 ERROR 1648 --- [nio-8080-exec-3] c.e.e.exception.GlobalExceptionHandler   : Validation error: category: Category is required
-2025-06-01T15:13:18.471+05:30  WARN 1648 --- [nio-8080-exec-3] .m.m.a.ExceptionHandlerExceptionResolver : Resolved [org.springframework.web.bind.MethodArgumentNotValidException: Validation failed for argument [0] in public com.example.ems.entity.LeaveRequest com.example.ems.controller.LeaveController.applyLeave(com.example.ems.dto.LeaveRequestDto,jakarta.servlet.http.HttpServletRequest): [Field error in object 'leaveRequestDto' on field 'category': rejected value [null]; codes [NotBlank.leaveRequestDto.category,NotBlank.category,NotBlank.java.lang.String,NotBlank]; arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [leaveRequestDto.category,category]; arguments []; default message [category]]; default message [Category is required]] ]
+
+    @PostMapping("/apply")
+    public LeaveRequest applyLeave(@Valid @RequestBody LeaveRequestDto leaveRequestDto, HttpServletRequest request) {
+        logger.info("Received leave request with employeeEmail: {}", leaveRequestDto.employeeEmail());
+        return leaveService.applyLeave(leaveRequestDto, request);
+    }const applyLeave = asyncHandler(async (req, res) => {
+  const { employeeEmail, startDate, endDate, reason } = req.body;
+  try {
+    const response = await axios.post(`${env.SPRING_BOOT_API}/api/leaves/apply`, {
+      employeeEmail,
+      startDate,
+      endDate,
+      reason,
+    }, {
+      headers: { Authorization: req.headers.authorization },
+    });
+    res.status(constants.status.CREATED).json(response.data);
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});const initialState = {
+  appliedLeaves: [],
+  currentLeaves: [],
+  pendingLeaves: [],
+  appliedLeavesByDateRange: [], // Add this
+  leaveHistory: { content: [] },
+  leaveBalances: { SICK: 10, CASUAL: 15, PAID: 20 },
+  loading: false,
+  error: null,
+};
+
+const leaveReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case 'FETCH_LEAVES_REQUEST':
+    case 'APPLY_LEAVE_REQUEST':
+    case 'FETCH_HISTORY_REQUEST':
+    case 'CANCEL_LEAVE_REQUEST':
+    case 'APPROVE_LEAVE_REQUEST':
+    case 'DECLINE_LEAVE_REQUEST':
+    case 'FETCH_PENDING_LEAVES_REQUEST':
+    case 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_REQUEST': // Add this
+      return { ...state, loading: true, error: null };
+
+    case 'FETCH_LEAVES_SUCCESS':
+      return { ...state, currentLeaves: action.payload, loading: false };
+
+    case 'APPLY_LEAVE_SUCCESS':
+      return { ...state, appliedLeaves: [...state.appliedLeaves, action.payload], loading: false };
+
+    case 'FETCH_HISTORY_SUCCESS':
+      return { ...state, leaveHistory: action.payload || { content: [] }, loading: false };
+
+    case 'CANCEL_LEAVE_SUCCESS':
+      return {
+        ...state,
+        appliedLeaves: state.appliedLeaves.filter(leave => leave.id !== action.payload),
+        currentLeaves: state.currentLeaves.filter(leave => leave.id !== action.payload),
+        loading: false,
+      };
+
+    case 'APPROVE_LEAVE_SUCCESS':
+    case 'DECLINE_LEAVE_SUCCESS':
+      return {
+        ...state,
+        currentLeaves: state.currentLeaves.filter(leave => leave.id !== action.payload.id),
+        pendingLeaves: state.pendingLeaves.filter(leave => leave.id !== action.payload.id),
+        loading: false,
+      };
+
+    case 'FETCH_PENDING_LEAVES_SUCCESS':
+      return { ...state, pendingLeaves: action.payload, loading: false };
+
+    case 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_SUCCESS': // Add this
+      return { ...state, appliedLeavesByDateRange: action.payload, loading: false };
+
+    case 'FETCH_LEAVES_FAILURE':
+    case 'APPLY_LEAVE_FAILURE':
+    case 'FETCH_HISTORY_FAILURE':
+    case 'CANCEL_LEAVE_FAILURE':
+    case 'APPROVE_LEAVE_FAILURE':
+    case 'DECLINE_LEAVE_FAILURE':
+    case 'FETCH_PENDING_LEAVES_FAILURE':
+    case 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_FAILURE': 
+      return { ...state, error: action.payload, loading: false };
+
+    default:
+      return state;
+  }
+};
+
+export default leaveReducer;
+export const applyLeave = (leaveData, token) => async dispatch => {
+  dispatch({ type: APPLY_LEAVE_REQUEST });
+  try {
+    const response = await axios.post('http://localhost:5000/api/leaves/apply', leaveData, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: APPLY_LEAVE_SUCCESS, payload: response.data });
+  } catch (error) {
+    const message = error.response?.data?.errors?.[0] || 'Failed to apply leave';
+    dispatch({ type: APPLY_LEAVE_FAILURE, payload: message });
+    throw error;
+  }
+};import { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { applyLeave } from '../redux/actions/leaveActions';
+import { addUser } from '../redux/actions/userActions'; 
+import {
+  getToken,
+  getLeaveLoading,
+  getLeaveError,
+  getUser
+} from '../redux/selectors';
+
+const ApplyLeave = () => {
+  const dispatch = useDispatch();
+  const token = useSelector(getToken);
+  const user = useSelector(getUser);
+  const loading = useSelector(getLeaveLoading);
+  const error = useSelector(getLeaveError);
 
 
-POST http://localhost:5000/api/leaves/apply 400 (Bad Request)
-dispatchXhrRequest @ xhr.js:195
-xhr @ xhr.js:15
-dispatchRequest @ dispatchRequest.js:51
-_request @ Axios.js:187
-request @ Axios.js:40
-httpMethod @ Axios.js:226
-wrap @ bind.js:5
-(anonymous) @ leaveActions.js:31
-__webpack_modules__../node_modules/redux-thunk/dist/redux-thunk.mjs.middleware @ redux-thunk.mjs:5
-handleApply @ ApplyLeave.js:41
-executeDispatch @ react-dom-client.development.js:16368
-runWithFiberInDEV @ react-dom-client.development.js:1518
-processDispatchQueue @ react-dom-client.development.js:16417
-(anonymous) @ react-dom-client.development.js:17016
-batchedUpdates$1 @ react-dom-client.development.js:3262
-dispatchEventForPluginEventSystem @ react-dom-client.development.js:16572
-dispatchEvent @ react-dom-client.development.js:20657
-dispatchDiscreteEvent @ react-dom-client.development.js:20625
-<button>
-(anonymous) @ react-jsx-dev-runtime.development.js:336
-ApplyLeave @ ApplyLeave.js:110
-react-stack-bottom-frame @ react-dom-client.development.js:23863
-renderWithHooks @ react-dom-client.development.js:5529
-updateFunctionComponent @ react-dom-client.development.js:8897
-beginWork @ react-dom-client.development.js:10522
-runWithFiberInDEV @ react-dom-client.development.js:1518
-performUnitOfWork @ react-dom-client.development.js:15130
-workLoopSync @ react-dom-client.development.js:14956
-renderRootSync @ react-dom-client.development.js:14936
-performWorkOnRoot @ react-dom-client.development.js:14417
-performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16216
-performWorkUntilDeadline @ scheduler.development.js:45
-<ApplyLeave>
-(anonymous) @ react-jsx-dev-runtime.development.js:336
-App @ App.js:42
-react-stack-bottom-frame @ react-dom-client.development.js:23863
-renderWithHooks @ react-dom-client.development.js:5529
-updateFunctionComponent @ react-dom-client.development.js:8897
-beginWork @ react-dom-client.development.js:10522
-runWithFiberInDEV @ react-dom-client.development.js:1518
-performUnitOfWork @ react-dom-client.development.js:15130
-workLoopSync @ react-dom-client.development.js:14956
-renderRootSync @ react-dom-client.development.js:14936
-performWorkOnRoot @ react-dom-client.development.js:14417
-performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16216
-performWorkUntilDeadline @ scheduler.development.js:45
-<App>
-(anonymous) @ react-jsx-dev-runtime.development.js:336
-./src/index.js @ index.js:10
-(anonymous) @ react refresh:37
-__webpack_require__ @ bootstrap:22
-(anonymous) @ startup:7
-(anonymous) @ startup:7
-[NEW] Explain Console errors by using Copilot in Edge: click
+
+  const [leaveData, setLeaveData] = useState({
+    category: '',
+    startDate: '',
+    endDate: '',
+    reason: '',
+  });
+
+  const handleLeaveChange = (e) => {
+    const { name, value } = e.target;
+    setLeaveData(prev => ({ ...prev, [name]: value }));
+  };
+
+
+  const handleApply = async () => {
+    try {
+      const leaveDataWithEmail = {
+        ...leaveData,
+        employeeEmail: user?.email || '',
+      };
+      console.log("data passed", leaveDataWithEmail);
+      await dispatch(applyLeave(leaveDataWithEmail, token));
+      alert('Leave applied successfully');
+      setLeaveData({
+        category: '',
+        startDate: '',
+        endDate: '',
+        reason: '',
+      });
+    } catch (error) {
+      console.log(error)
+      console.error('Error applying leave:', 'Something went wrong');
+      alert(`Failed to apply leave: "Something went wrong"`);
+    }
+  };
+
+ 
+
+  return (
+    <div>
+        {
+      
+        <>
+          <h2 className="text-center mb-4">Apply Leave</h2>
+          <div className="card p-4">
+            <div className="mb-3">
+              <label className="form-label">Category</label>
+              <select
+                className="form-control"
+                name="category"
+                value={leaveData.category}
+                onChange={handleLeaveChange}
+                required
+              >
+                <option value="">Select Category</option>
+                <option value="SICK">Sick Leave</option>
+                <option value="CASUAL">Casual Leave</option>
+                <option value="ANNUAL">Annual Leave</option>
+              </select>
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Start Date</label>
+              <input
+                type="date"
+                className="form-control"
+                name="startDate"
+                value={leaveData.startDate}
+                onChange={handleLeaveChange}
+                required
+              />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">End Date</label>
+              <input
+                type="date"
+                className="form-control"
+                name="endDate"
+                value={leaveData.endDate}
+                onChange={handleLeaveChange}
+                required
+              />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Reason</label>
+              <textarea
+                className="form-control"
+                name="reason"
+                value={leaveData.reason}
+                onChange={handleLeaveChange}
+                required
+              />
+            </div>
+            <button
+              className="btn btn-primary me-2"
+              onClick={handleApply}
+              disabled={loading}
+            >
+              {loading ? 'Applying...' : 'Apply'}
+            </button>
+            {error && (
+              <div className="alert alert-danger mt-3" role="alert">
+                Error: {error}
+              </div>
+            )}
+          </div>
          
-         to explain an error. 
-        Learn more
-        Don't show again
-ApplyLeave.js:50 AxiosError {message: 'Request failed with status code 400', name: 'AxiosError', code: 'ERR_BAD_REQUEST', config: {…}, request: XMLHttpRequest, …}
-ApplyLeave.js:51  Error applying leave: Something went wrong
-handleApply @ ApplyLeave.js:51
-await in handleApply
-executeDispatch @ react-dom-client.development.js:16368
-runWithFiberInDEV @ react-dom-client.development.js:1518
-processDispatchQueue @ react-dom-client.development.js:16417
-(anonymous) @ react-dom-client.development.js:17016
-batchedUpdates$1 @ react-dom-client.development.js:3262
-dispatchEventForPluginEventSystem @ react-dom-client.development.js:16572
-dispatchEvent @ react-dom-client.development.js:20657
-dispatchDiscreteEvent @ react-dom-client.development.js:20625
-<button>
-(anonymous) @ react-jsx-dev-runtime.development.js:336
-ApplyLeave @ ApplyLeave.js:110
-react-stack-bottom-frame @ react-dom-client.development.js:23863
-renderWithHooks @ react-dom-client.development.js:5529
-updateFunctionComponent @ react-dom-client.development.js:8897
-beginWork @ react-dom-client.development.js:10522
-runWithFiberInDEV @ react-dom-client.development.js:1518
-performUnitOfWork @ react-dom-client.development.js:15130
-workLoopSync @ react-dom-client.development.js:14956
-renderRootSync @ react-dom-client.development.js:14936
-performWorkOnRoot @ react-dom-client.development.js:14417
-performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16216
-performWorkUntilDeadline @ scheduler.development.js:45
-<ApplyLeave>
-(anonymous) @ react-jsx-dev-runtime.development.js:336
-App @ App.js:42
-react-stack-bottom-frame @ react-dom-client.development.js:23863
-renderWithHooks @ react-dom-client.development.js:5529
-updateFunctionComponent @ react-dom-client.development.js:8897
-beginWork @ react-dom-client.development.js:10522
-runWithFiberInDEV @ react-dom-client.development.js:1518
-performUnitOfWork @ react-dom-client.development.js:15130
-workLoopSync @ react-dom-client.development.js:14956
-renderRootSync @ react-dom-client.development.js:14936
-performWorkOnRoot @ react-dom-client.development.js:14417
-performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16216
-performWorkUntilDeadline @ scheduler.development.js:45
-<App>
-(anonymous) @ react-jsx-dev-runtime.development.js:336
-./src/index.js @ index.js:10
-(anonymous) @ react refresh:37
-__webpack_require__ @ bootstrap:22
-(anonymous) @ startup:7
-(anonymous) @ startup:7
+        </>
+          
+      }
+    
+    </div>
+  );
+};
+
+export default ApplyLeave;
