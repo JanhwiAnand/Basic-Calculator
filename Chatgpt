@@ -1,237 +1,231 @@
-
-    @PostMapping("/apply")
-    public LeaveRequest applyLeave(@Valid @RequestBody LeaveRequestDto leaveRequestDto, HttpServletRequest request) {
-        logger.info("Received leave request with employeeEmail: {}", leaveRequestDto.employeeEmail());
-        return leaveService.applyLeave(leaveRequestDto, request);
-    }const applyLeave = asyncHandler(async (req, res) => {
-  const { employeeEmail, startDate, endDate, reason } = req.body;
-  try {
-    const response = await axios.post(`${env.SPRING_BOOT_API}/api/leaves/apply`, {
-      employeeEmail,
-      startDate,
-      endDate,
-      reason,
-    }, {
-      headers: { Authorization: req.headers.authorization },
-    });
-    res.status(constants.status.CREATED).json(response.data);
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
-});const initialState = {
-  appliedLeaves: [],
-  currentLeaves: [],
-  pendingLeaves: [],
-  appliedLeavesByDateRange: [], // Add this
-  leaveHistory: { content: [] },
-  leaveBalances: { SICK: 10, CASUAL: 15, PAID: 20 },
-  loading: false,
-  error: null,
-};
-
-const leaveReducer = (state = initialState, action) => {
-  switch (action.type) {
-    case 'FETCH_LEAVES_REQUEST':
-    case 'APPLY_LEAVE_REQUEST':
-    case 'FETCH_HISTORY_REQUEST':
-    case 'CANCEL_LEAVE_REQUEST':
-    case 'APPROVE_LEAVE_REQUEST':
-    case 'DECLINE_LEAVE_REQUEST':
-    case 'FETCH_PENDING_LEAVES_REQUEST':
-    case 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_REQUEST': // Add this
-      return { ...state, loading: true, error: null };
-
-    case 'FETCH_LEAVES_SUCCESS':
-      return { ...state, currentLeaves: action.payload, loading: false };
-
-    case 'APPLY_LEAVE_SUCCESS':
-      return { ...state, appliedLeaves: [...state.appliedLeaves, action.payload], loading: false };
-
-    case 'FETCH_HISTORY_SUCCESS':
-      return { ...state, leaveHistory: action.payload || { content: [] }, loading: false };
-
-    case 'CANCEL_LEAVE_SUCCESS':
-      return {
-        ...state,
-        appliedLeaves: state.appliedLeaves.filter(leave => leave.id !== action.payload),
-        currentLeaves: state.currentLeaves.filter(leave => leave.id !== action.payload),
-        loading: false,
-      };
-
-    case 'APPROVE_LEAVE_SUCCESS':
-    case 'DECLINE_LEAVE_SUCCESS':
-      return {
-        ...state,
-        currentLeaves: state.currentLeaves.filter(leave => leave.id !== action.payload.id),
-        pendingLeaves: state.pendingLeaves.filter(leave => leave.id !== action.payload.id),
-        loading: false,
-      };
-
-    case 'FETCH_PENDING_LEAVES_SUCCESS':
-      return { ...state, pendingLeaves: action.payload, loading: false };
-
-    case 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_SUCCESS': // Add this
-      return { ...state, appliedLeavesByDateRange: action.payload, loading: false };
-
-    case 'FETCH_LEAVES_FAILURE':
-    case 'APPLY_LEAVE_FAILURE':
-    case 'FETCH_HISTORY_FAILURE':
-    case 'CANCEL_LEAVE_FAILURE':
-    case 'APPROVE_LEAVE_FAILURE':
-    case 'DECLINE_LEAVE_FAILURE':
-    case 'FETCH_PENDING_LEAVES_FAILURE':
-    case 'FETCH_APPLIED_LEAVES_BY_DATE_RANGE_FAILURE': 
-      return { ...state, error: action.payload, loading: false };
-
-    default:
-      return state;
-  }
-};
-
-export default leaveReducer;
-export const applyLeave = (leaveData, token) => async dispatch => {
-  dispatch({ type: APPLY_LEAVE_REQUEST });
-  try {
-    const response = await axios.post('http://localhost:5000/api/leaves/apply', leaveData, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    dispatch({ type: APPLY_LEAVE_SUCCESS, payload: response.data });
-  } catch (error) {
-    const message = error.response?.data?.errors?.[0] || 'Failed to apply leave';
-    dispatch({ type: APPLY_LEAVE_FAILURE, payload: message });
-    throw error;
-  }
-};import { useState } from 'react';
+Cannot read properties of undefined (reading 'email')
+TypeError: Cannot read properties of undefined (reading 'email')
+    at http://localhost:3000/static/js/bundle.js:81550:48
+    at Array.map (<anonymous>)
+    at Dashboard (http://localhost:3000/static/js/bundle.js:81548:53)
+    at react-stack-bottom-frame (http://localhost:3000/static/js/bundle.js:60157:18)
+    at renderWithHooks (http://localhost:3000/static/js/bundle.js:50367:20)
+    at updateFunctionComponent (http://localhost:3000/static/js/bundle.js:52060:17)
+    at beginWork (http://localhost:3000/static/js/bundle.js:52646:16)
+    at runWithFiberInDEV (http://localhost:3000/static/js/bundle.js:48138:68)
+    at performUnitOfWork (http://localhost:3000/static/js/bundle.js:54719:93)
+    at workLoopSync (http://localhost:3000/static/js/bundle.js:54612:38)
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { applyLeave } from '../redux/actions/leaveActions';
-import { addUser } from '../redux/actions/userActions'; 
-import {
-  getToken,
-  getLeaveLoading,
-  getLeaveError,
-  getUser
-} from '../redux/selectors';
+import { fetchAppliedLeavesByDateRange, fetchPendingLeaves } from '../redux/actions/leaveActions';
+import { getToken, getUser, getAppliedLeavesByDateRange, getPendingLeaves, getLeaveLoading, getLeaveError } from '../redux/selectors';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { format } from 'date-fns';
+import { Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 
-const ApplyLeave = () => {
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+
+const Dashboard = () => {
   const dispatch = useDispatch();
   const token = useSelector(getToken);
   const user = useSelector(getUser);
+  const appliedLeaves = useSelector(getAppliedLeavesByDateRange);
+  const pendingLeaves = useSelector(getPendingLeaves);
   const loading = useSelector(getLeaveLoading);
   const error = useSelector(getLeaveError);
 
-
-
-  const [leaveData, setLeaveData] = useState({
-    category: '',
-    startDate: '',
-    endDate: '',
-    reason: '',
+  const [dateRange, setDateRange] = useState(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setMonth(end.getMonth() - 1);
+    return [start, end];
   });
+  const [startDate, endDate] = dateRange;
 
-  const handleLeaveChange = (e) => {
-    const { name, value } = e.target;
-    setLeaveData(prev => ({ ...prev, [name]: value }));
-  };
-
-
-  const handleApply = async () => {
-    try {
-      const leaveDataWithEmail = {
-        ...leaveData,
-        employeeEmail: user?.email || '',
-      };
-      console.log("data passed", leaveDataWithEmail);
-      await dispatch(applyLeave(leaveDataWithEmail, token));
-      alert('Leave applied successfully');
-      setLeaveData({
-        category: '',
-        startDate: '',
-        endDate: '',
-        reason: '',
-      });
-    } catch (error) {
-      console.log(error)
-      console.error('Error applying leave:', 'Something went wrong');
-      alert(`Failed to apply leave: "Something went wrong"`);
+  useEffect(() => {
+    if (token && user?.role === 'ADMIN') {
+      const formattedStartDate = startDate ? format(startDate, 'yyyy-MM-dd') : '';
+      const formattedEndDate = endDate ? format(endDate, 'yyyy-MM-dd') : '';
+      dispatch(fetchAppliedLeavesByDateRange(formattedStartDate, formattedEndDate, token));
+      dispatch(fetchPendingLeaves(token));
     }
-  };
+  }, [dispatch, token, user?.role, startDate, endDate]);
 
- 
+  const categoryCounts = appliedLeaves.reduce((acc, leave) => {
+    acc[leave.category] = (acc[leave.category] || 0) + 1;
+    return acc;
+  }, {});
+  const chartData = {
+    labels: Object.keys(categoryCounts),
+    datasets: [
+      {
+        label: 'Leave Applications by Category',
+        data: Object.values(categoryCounts),
+        backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1'],
+        borderColor: ['#FF6B6B', '#4ECDC4', '#45B7D1'],
+        borderWidth: 1,
+      },
+    ],
+  };
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: { position: 'top' },
+      title: { display: true, text: 'Leave Applications by Category' },
+    },
+  };
 
   return (
-    <div>
-        {
-      
-        <>
-          <h2 className="text-center mb-4">Apply Leave</h2>
-          <div className="card p-4">
-            <div className="mb-3">
-              <label className="form-label">Category</label>
-              <select
-                className="form-control"
-                name="category"
-                value={leaveData.category}
-                onChange={handleLeaveChange}
-                required
-              >
-                <option value="">Select Category</option>
-                <option value="SICK">Sick Leave</option>
-                <option value="CASUAL">Casual Leave</option>
-                <option value="ANNUAL">Annual Leave</option>
-              </select>
+    <div className="container-fluid min-vh-100 bg-light">
+      <header className="bg-primary text-white p-4 shadow mb-4">
+        <div className="container">
+          <div className="d-flex justify-content-between align-items-center">
+            <h1 className="h3 mb-0">Admin Dashboard</h1>
+            <div>
+              <span className="me-3">Welcome, {user?.email}</span>
             </div>
-            <div className="mb-3">
-              <label className="form-label">Start Date</label>
-              <input
-                type="date"
-                className="form-control"
-                name="startDate"
-                value={leaveData.startDate}
-                onChange={handleLeaveChange}
-                required
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">End Date</label>
-              <input
-                type="date"
-                className="form-control"
-                name="endDate"
-                value={leaveData.endDate}
-                onChange={handleLeaveChange}
-                required
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Reason</label>
-              <textarea
-                className="form-control"
-                name="reason"
-                value={leaveData.reason}
-                onChange={handleLeaveChange}
-                required
-              />
-            </div>
-            <button
-              className="btn btn-primary me-2"
-              onClick={handleApply}
-              disabled={loading}
-            >
-              {loading ? 'Applying...' : 'Apply'}
-            </button>
-            {error && (
-              <div className="alert alert-danger mt-3" role="alert">
-                Error: {error}
-              </div>
-            )}
           </div>
-         
-        </>
-          
-      }
-    
+        </div>
+      </header>
+
+      <main className="container">
+        {error && (
+          <div className="alert alert-danger" role="alert">
+            {error}
+          </div>
+        )}
+
+        <div className="row g-4">
+          <div className="col-md-6 col-lg-4">
+            <div className="card shadow-sm h-100">
+              <div className="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h5 className="mb-0">Leave Applications</h5>
+                <div>
+                  <DatePicker
+                    selectsRange={true}
+                    startDate={startDate}
+                    endDate={endDate}
+                    onChange={(update) => setDateRange(update)}
+                    className="form-control form-control-sm"
+                    placeholderText="Select date range"
+                  />
+                </div>
+              </div>
+              <div className="card-body">
+                {loading ? (
+                  <p className="text-muted">Loading...</p>
+                ) : (
+                  <>
+                    <h2 className="card-title text-info">{appliedLeaves.length}</h2>
+                    <p className="text-muted">
+                      Applications from {startDate && format(startDate, 'MMM dd, yyyy')} to{' '}
+                      {endDate && format(endDate, 'MMM dd, yyyy')}
+                    </p>
+                    <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      <table className="table table-sm table-striped">
+                        <thead>
+                          <tr>
+                            <th>Email</th>
+                            <th>Category</th>
+                            <th>Dates</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {appliedLeaves.length === 0 ? (
+                            <tr>
+                              <td colSpan="4" className="text-center">No leave applications</td>
+                            </tr>
+                          ) : (
+                            appliedLeaves.map(leave => (
+                              <tr key={leave.id}>
+                                <td>{leave.user.email}</td>
+                                <td>{leave.category || 'N/A'}</td>
+                                <td>
+                                  {format(new Date(leave.startDate), 'MMM dd')} -{' '}
+                                  {format(new Date(leave.endDate), 'MMM dd')}
+                                </td>
+                                <td>{leave.status}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="col-md-6 col-lg-4">
+            <div className="card shadow-sm h-100">
+              <div className="card-header bg-warning text-white">
+                <h5 className="mb-0">Pending Leaves</h5>
+              </div>
+              <div className="card-body">
+                {loading ? (
+                  <p className="text-muted">Loading...</p>
+                ) : (
+                  <>
+                    <h2 className="card-title text-warning">{pendingLeaves.length}</h2>
+                    <p className="text-muted">Leaves awaiting approval</p>
+                    <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      <table className="table table-sm table-striped">
+                        <thead>
+                          <tr>
+                            <th>Email</th>
+                            <th>Category</th>
+                            <th>Dates</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pendingLeaves.length === 0 ? (
+                            <tr>
+                              <td colSpan="3" className="text-center">No pending leaves</td>
+                            </tr>
+                          ) : (
+                            pendingLeaves.map(leave => (
+                              <tr key={leave.id}>
+                                <td>{leave.user.email}</td>
+                                <td>{leave.category || 'N/A'}</td>
+                                <td>
+                                  {format(new Date(leave.startDate), 'MMM dd')} -{' '}
+                                  {format(new Date(leave.endDate), 'MMM dd')}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="col-md-6 col-lg-4">
+            <div className="card shadow-sm h-100">
+              <div className="card-header bg-success text-white">
+                <h5 className="mb-0">Leave Categories</h5>
+              </div>
+              <div className="card-body">
+                {appliedLeaves.length > 0 ? (
+                  <Bar data={chartData} options={chartOptions} />
+                ) : (
+                  <p className="text-muted">No data to display</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 d-flex flex-wrap gap-2">
+          <a href="/apply-leave" className="btn btn-primary">Add New User</a>
+          <a href="/approval" className="btn btn-success">Approve Leaves</a>
+          <a href="/history" className="btn btn-info">View History</a>
+        </div>
+      </main>
     </div>
   );
 };
 
-export default ApplyLeave;
+export default Dashboard;
