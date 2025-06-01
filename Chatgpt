@@ -36,6 +36,11 @@ const Dashboard = () => {
     }
   }, [dispatch, token, user?.role, startDate, endDate]);
 
+  useEffect(() => {
+    console.log('Applied Leaves:', appliedLeaves);
+    console.log('Pending Leaves:', pendingLeaves);
+  }, [appliedLeaves, pendingLeaves]);
+
   const categoryCounts = appliedLeaves.reduce((acc, leave) => {
     acc[leave.category] = (acc[leave.category] || 0) + 1;
     return acc;
@@ -124,7 +129,7 @@ const Dashboard = () => {
                           ) : (
                             appliedLeaves.map(leave => (
                               <tr key={leave.id}>
-                                <td>{leave.user.email}</td>
+                                <td>{leave.user?.email || 'N/A'}</td>
                                 <td>{leave.category || 'N/A'}</td>
                                 <td>
                                   {format(new Date(leave.startDate), 'MMM dd')} -{' '}
@@ -172,7 +177,7 @@ const Dashboard = () => {
                           ) : (
                             pendingLeaves.map(leave => (
                               <tr key={leave.id}>
-                                <td>{leave.user.email}</td>
+                                <td>{leave.user?.email || 'N/A'}</td>
                                 <td>{leave.category || 'N/A'}</td>
                                 <td>
                                   {format(new Date(leave.startDate), 'MMM dd')} -{' '}
@@ -217,21 +222,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
-Dashboard.js:127 
- Uncaught TypeError: Cannot read properties of undefined (reading 'email')
-    at Dashboard.js:127:1
-    at Array.map (<anonymous>)
-    at Dashboard (Dashboard.js:122:1)
-(anonymous)	@	Dashboard.js:127
-Dashboard	@	Dashboard.js:122
-<Dashboard>		
-App	@	App.js:62
-<App>		
-./src/index.js	@	index.js:10
-options.factory	@	react refresh:37
-__webpack_require__	@	bootstrap:22
-(anonymous)	@	startup:7
-(anonymous)	@	startup:7
-App.js:62 
- An error occurred in the <Dashboard> component.
