@@ -1,56 +1,432 @@
-const forgotPassword = asyncHandler(async (req, res) => {
-  const { firstname, lastname, email } = req.body;
+// import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+// import { useSelector } from 'react-redux';
+// import Login from './components/Login';
+// import Navbar from './components/Navbar';
+// import ApplyLeave from './components/ApplyLeave';
+// import Approval from './components/Approval';
+// import History from './components/History';
+// import Profile from './components/Profile';
+// import ErrorBoundary from './components/ErrorBoundary';
+// import { getToken, getUser } from './redux/selectors';
+// import './styles.css';
+// import AddEmployeeForm from './components/AddUser';
+// import Dashboard from './components/Dashboard';
+// import AddEmployee from './components/AddUser';
 
-  if (!firstname || !lastname || !email) {
-    throw new CustomError(
-      constants.errorMessages.MISSING_FIELDS,
-      constants.status.BAD_REQUEST
-    );
-  }
+// function App() {
+//   const token = useSelector(getToken);
+//   const user = useSelector(getUser);
+//   const isAdmin = user?.role === 'ADMIN';
 
-  try {
-    const response = await axios.post(`${env.SPRING_BOOT_API}/api/auth/forgot-password`, {
-      firstname,
-      lastname,
-      email
-    });
+//   return (
+//     <div style={{ height: '100vh', width: '100vw' }}>
+//       <Router>
+//         {token && <Navbar />}
+//         <div className="container mt-3">
+//           <Routes>
+//             <Route
+//               path="/login"
+//               element={
+//                 token ? (
+//                   <Navigate to={isAdmin ? "/add-employee" : "/apply-leave"} />
+//                 ) : (
+//                   <ErrorBoundary>
+//                     <Login />
+//                   </ErrorBoundary>
+//                 )
+//               }
+//             />
+//             <Route
+//               path="/apply-leave"
+//               element={
+//                 token && user?.role === 'EMPLOYEE' ? (
+//                   <ErrorBoundary>
+//                     <ApplyLeave />
+//                   </ErrorBoundary>
+//                 ) : (
+//                   <Navigate to={token ? "/profile" : "/login"} />
+//                 )
+//               }
+//             />
+//             <Route
+//               path="/dashboard"
+//               element={
+//                 token && isAdmin ? (
+//                   <ErrorBoundary>
+//                     <Dashboard/>
+//                   </ErrorBoundary>
+//                 ) : (
+//                   <Navigate to={token ? "/profile" : "/login"} />
+//                 )
+//               }
+//             />
+//             <Route path="/add-employee" element={token && user?.role==='ADMIN'?(
+              
+//                 <AddEmployee/>
+//               ):(
+//                 <Navigate to={token ? "/apply-leave":"/login"}/>
+//               )
+//             }/>
+//             <Route
+//               path="/approval"
+//               element={
+//                 token && isAdmin ? (
+//                   <ErrorBoundary>
+//                     <Approval />
+//                   </ErrorBoundary>
+//                 ) : (
+//                   <Navigate to={token ? "/profile" : "/login"} />
+//                 )
+//               }
+//             />
+//             <Route
+//               path="/history"
+//               element={
+//                 token && user?.role === 'EMPLOYEE' ? (
+//                   <ErrorBoundary>
+//                     <History />
+//                   </ErrorBoundary>
+//                 ) : (
+//                   <Navigate to={token ? "/profile" : "/login"} />
+//                 )
+//               }
+//             />
+//             <Route
+//               path="/profile"
+//               element={
+//                 token ? (
+//                   <ErrorBoundary>
+//                     <Profile />
+//                   </ErrorBoundary>
+//                 ) : (
+//                   <Navigate to="/login" />
+//                 )
+//               }
+//             />
+//             <Route
+//               path="/"
+//               element={<Navigate to={token ? (isAdmin ? "/dashboard" : "/apply-leave") : "/login"} />}
+//             />
+//           </Routes>
+//         </div>
+//       </Router>
+//     </div>
+//   );
+// }
 
-    logger.info(`Forgot password request processed for ${email}`);
+// export default App;
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import Login from './components/Login';
+import Navbar from './components/Navbar';
+import ApplyLeave from './components/ApplyLeave';
+import Approval from './components/Approval';
+import History from './components/History';
+import Profile from './components/Profile';
+import ErrorBoundary from './components/ErrorBoundary';
+import { getToken, getUser } from './redux/selectors';
+import './styles.css';
+import AddEmployee from './components/AddUser';
+import Dashboard from './components/Dashboard';
+import ForgotPassword from './components/ForgotPassword';
 
-    res.status(constants.status.OK).json({
-      message: response.data.message || 'Instructions sent if account exists.',
-    });
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
-});
+function App() {
+  const token = useSelector(getToken);
+  const user = useSelector(getUser);
+  const isAdmin = user?.role === 'ADMIN';
 
-validation mid
-const validateForgotPassword = (req, res, next) => {
-  const { firstname, lastname, email } = req.body;
+  return (
+    <div style={{ height: '100vh', width: '100vw' }}>
+      <Router>
+        {token && <Navbar />}
+        <div className="container mt-3">
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                token ? (
+                  <Navigate to={isAdmin ? "/dashboard" : "/apply-leave"} />
+                ) : (
+                  <ErrorBoundary>
+                    <Login />
+                  </ErrorBoundary>
+                )
+              }
+            />
+            <Route
+              path="/apply-leave"
+              element={
+                token && user?.role === 'EMPLOYEE' ? (
+                  <ErrorBoundary>
+                    <ApplyLeave />
+                  </ErrorBoundary>
+                ) : (
+                  <Navigate to={token ? "/profile" : "/login"} />
+                )
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                token && isAdmin ? (
+                  <ErrorBoundary>
+                    <Dashboard />
+                  </ErrorBoundary>
+                ) : (
+                  <Navigate to={token ? "/profile" : "/login"} />
+                )
+              }
+            />
+            <Route
+              path="/add-employee"
+              element={
+                token && user?.role === 'ADMIN' ? (
+                  <AddEmployee />
+                ) : (
+                  <Navigate to={token ? "/apply-leave" : "/login"} />
+                )
+              }
+            />
+            <Route
+              path="/approval"
+              element={
+                token && isAdmin ? (
+                  <ErrorBoundary>
+                    <Approval />
+                  </ErrorBoundary>
+                ) : (
+                  <Navigate to={token ? "/profile" : "/login"} />
+                )
+              }
+            />
+            <Route
+              path="/history"
+              element={
+                token && user?.role === 'EMPLOYEE' ? (
+                  <ErrorBoundary>
+                    <History />
+                  </ErrorBoundary>
+                ) : (
+                  <Navigate to={token ? "/profile" : "/login"} />
+                )
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                token ? (
+                  <ErrorBoundary>
+                    <Profile />
+                  </ErrorBoundary>
+                ) : (
+                  <Navigate to="/login" />
+                )
+              }
+            />
+            <Route
+              path="/"
+              element={<Navigate to={token ? (isAdmin ? "/dashboard" : "/apply-leave") : "/login"} />}
+            />
+            <Route path='/forgot-password' element={<ForgotPassword/>}/>
+          </Routes>
+        </div>
+      </Router>
+    </div>
+  );
+}
 
-  if (!firstname || !lastname || !email) {
-    return res.status(400).json({ message: 'All fields are required.' });
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return res.status(400).json({ message: 'Invalid email format.' });
-  }
-
-  next();
+export default App;export const getToken = state => state.auth.token;
+export const getUser = state => state.auth.user;
+export const getAuthError = state => state.auth.error;
+export const getAuthLoading = state => state.auth.loading;
+export const getCurrentLeaves = state => state.leaves.currentLeaves;
+export const getAppliedLeaves = state => state.leaves.appliedLeaves;
+export const getLeaveHistory = state => state.leaves.leaveHistory || { content: [] };
+export const getLeaveBalances = state => state.leaves.leaveBalances;
+export const getLeaveError = state => state.leaves.error;
+export const getLeaveLoading = state => state.leaves.loading;
+export const getPendingLeaves = state => state.leaves.pendingLeaves;
+export const getAppliedLeavesByDateRange = state => state.leaves.appliedLeavesByDateRange || [];
+//for forgot password part
+export const getAuthMessage=state=>state.auth.message;
+// Auth Reducer: Manages authentication state
+const initialState = {
+  token: sessionStorage.getItem('token') || null,
+  user: JSON.parse(sessionStorage.getItem('user')) || null,
+  error: null,
+  loading: false,
 };
 
-module.exports = {
-  validateLogin,
-  validateForgotPassword, // add this
+const authReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case 'FORGOT_PASSWORD_REQUEST':
+      return { ...state, loading: true, error: null };
+
+    case 'FORGOT_PASSWORD_SUCCESS':
+      return { ...state, loading: false, message: action.payload };
+
+    case 'FORGOT_PASSWORD_FAILURE':
+      return { ...state, loading: false, error: action.payload };
+
+    case 'LOGIN_REQUEST':
+      return { ...state, loading: true, error: null };
+    case 'LOGIN_SUCCESS':
+      sessionStorage.setItem('token', action.payload.token);
+      sessionStorage.setItem('user', JSON.stringify(action.payload.user));
+      return { ...state, token: action.payload.token, user: action.payload.user, loading: false };
+    case 'LOGIN_FAILURE':
+      return { ...state, error: action.payload, loading: false };
+    case 'LOGOUT':
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
+      return { ...state, token: null, user: null };
+    default:
+      return state;
+  }
 };
-errorMessages: {
-  MISSING_FIELDS: 'Required fields are missing.',
-  ...
-},
-status: {
-  OK: 200,
-  BAD_REQUEST: 400,
-  ...
-},
+
+export default authReducer;// Auth Actions: Handles login and logout
+import axios from 'axios';
+
+export const LOGIN_REQUEST = 'LOGIN_REQUEST';
+export const LOGIN_SUCCESS = 'LOGIN_SUCCESS';
+export const LOGIN_FAILURE = 'LOGIN_FAILURE';
+
+//for forgot password things
+export const FORGOT_PASSWORD_REQUEST='FORGOT_PASSWORD_REQUEST';
+export const FORGOT_PASSWORD_SUCCESS='FORGOT_PASSWORD_SUCCESS';
+export const FORGOT_PASSWORD_FAILURE='FORGOT_PASSWORD_FAILURE';
+
+//for logout page
+export const LOGOUT = 'LOGOUT';
+
+export const forgotPassword = (firstname, lastname, email) => async dispatch => {
+  dispatch({ type: FORGOT_PASSWORD_REQUEST });
+  try {
+    const response = await axios.post('http://localhost:5000/api/auth/forgot-password', {
+      firstname,
+      lastname,
+      email
+    });
+    dispatch({ type: FORGOT_PASSWORD_SUCCESS, payload: response.data.message });
+  } catch (error) {
+    dispatch({
+      type: FORGOT_PASSWORD_FAILURE,
+      payload: error.response?.data?.message || 'Request failed',
+    });
+  }
+};
+
+export const login = (email, password) => async dispatch => {
+    dispatch({ type: LOGIN_REQUEST });
+    try {
+        sessionStorage.removeItem('token');
+        const response = await axios.post('http://localhost:5000/api/auth/login', { email, password });
+        sessionStorage.setItem('token', response.data.accessToken);//token is a key whose value is comming in response
+        dispatch({ type: LOGIN_SUCCESS, payload: { token: response.data.accessToken, user: response.data.user } });
+        return response.data;
+    } catch (error) {
+        const message = error.response?.data?.errors?.[0] || 'Login failed';
+        dispatch({ type: LOGIN_FAILURE, payload: message });
+        throw error;
+    }
+};
+
+export const logout = () => (dispatch) => {
+    sessionStorage.removeItem('token');
+    dispatch({ type: LOGOUT });
+};
+
+export const loginSuccess = (payload) => ({
+    type: LOGIN_SUCCESS,
+    payload,
+});import { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { forgotPassword } from '../redux/actions/authActions';
+import {
+  getAuthMessage,
+  getAuthError,
+  getAuthLoading
+} from '../redux/selectors';
+
+const ForgotPassword = () => {
+  const [firstname, setFirstname] = useState('');
+  const [lastname, setLastname] = useState('');
+  const [email, setEmail] = useState('');
+
+  const dispatch = useDispatch();
+  const loading = useSelector(getAuthLoading);
+  const error = useSelector(getAuthError);
+  const message = useSelector(getAuthMessage);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    dispatch(forgotPassword(firstname, lastname, email));
+  };
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        margin: 0,
+        padding: 0,
+        background: 'linear-gradient(to right, #74ebd5, #ACB6E5)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <div className="card p-4 shadow-lg rounded-4" style={{ width: '400px' }}>
+        <h4 className="text-center text-primary mb-4">Forgot Password</h4>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label className="form-label">First Name</label>
+            <input
+              type="text"
+              className="form-control"
+              value={firstname}
+              onChange={(e) => setFirstname(e.target.value)}
+              required
+            />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Last Name</label>
+            <input
+              type="text"
+              className="form-control"
+              value={lastname}
+              onChange={(e) => setLastname(e.target.value)}
+              required
+            />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Email</label>
+            <input
+              type="email"
+              className="form-control"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" className="btn btn-primary w-100" disabled={loading}>
+            {loading ? 'Submitting...' : 'Submit'}
+          </button>
+          {message && (
+            <div className="alert alert-success mt-3" role="alert">
+              {message}
+            </div>
+          )}
+          {error && (
+            <div className="alert alert-danger mt-3" role="alert">
+              {error}
+            </div>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default ForgotPassword;
