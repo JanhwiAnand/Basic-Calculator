@@ -1,56 +1,25 @@
- public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> {
+Uncaught runtime errors:
+×
+ERROR
+Request failed with status code 401
+AxiosError: Request failed with status code 401
+    at settle (http://localhost:3000/static/js/bundle.js:10655:12)
+    at XMLHttpRequest.onloadend (http://localhost:3000/static/js/bundle.js:9282:66)
+    at Axios.request (http://localhost:3000/static/js/bundle.js:9781:41)
+    at async http://localhost:3000/static/js/bundle.js:83452:22
 
-    @Query("SELECT new com.example.ems.dto.LeaveResponseDto(" +
-           "lr.id, u.firstname, u.lastname, u.email, " +
-           "lr.startDate, lr.endDate, lr.reason, lr.category, lr.status) " +
-           "FROM LeaveRequest lr " +
-           "JOIN lr.user u " +
-           "WHERE lr.status = :status")
-    Page<LeaveResponseDto> findByStatusWithUserDetails(LeaveStatus status, Pageable pageable);
-}
-✅ Step 3: Update LeaveService method
-java
-Copy code
-public Page<LeaveResponseDto> getPendingLeaves(Pageable pageable) {
-    logger.info("Fetching pending leaves with user details");
-    return leaveRequestRepository.findByStatusWithUserDetails(LeaveStatus.PENDING, pageable);
-}
-✅ Step 4: Update Controller method
-java
-Copy code
-@GetMapping("/pending")
-public Page<LeaveResponseDto> getPendingLeaves(
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size) {
-    logger.info("Fetching pending leaves, page: {}, size: {}", page, size);
-    Pageable pageable = PageRequest.of(page, size);
-    return leaveService.getPendingLeaves(pageable);
-}
-✅ Step 5: Frontend receives enriched response
-Now frontend gets data like this:
-
-json
-Copy code
-[
-  {
-    "leaveId": 1,
-    "firstname": "John",
-    "lastname": "Doe",
-    "email": "john@infinite.com",
-    "startDate": "2025-06-10",
-    "endDate": "2025-06-15",
-    "reason": "Vacation",
-    "category": "Annual",
-    "status": "PENDING"
-  },
-  ...
-]
-You can now display the employee’s full name directly.
-
-Let me know if you want to add filters (e.g. by date range) too.
-
-
-
-
-
-
+ Error creating bean with name 'leaveController' defined in file [C:\Users\janhwia\git\ems\target\classes\com\example\ems\controller\LeaveController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'leaveServiceImpl' defined in file [C:\Users\janhwia\git\ems\target\classes\com\example\ems\service\LeaveServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'leaveRequestRepository' defined in com.example.ems.repository.LeaveRequestRepository defined in @EnableJpaRepositories declared on JpaRepositoriesRegistrar.EnableJpaRepositoriesConfiguration: Could not create query for public abstract org.springframework.data.domain.Page com.example.ems.repository.LeaveRequestRepository.findByStatusWithUserDetails(com.example.ems.enums.LeaveStatus,org.springframework.data.domain.Pageable); Reason: Validation failed for query for method public abstract org.springframework.data.domain.Page com.example.ems.repository.LeaveRequestRepository.findByStatusWithUserDetails(com.example.ems.enums.LeaveStatus,org.springframework.data.domain.Pageable)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804) ~[spring-beans-6.2.6.jar:6.2.6]
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240) ~[spring-beans-6.2.6.jar:6.2.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1387) ~[spring-beans-6.2.6.jar:6.2.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1224) ~[spring-beans-6.2.6.jar:6.2.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:569) ~[spring-beans-6.2.6.jar:6.2.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:529) ~[spring-beans-6.2.6.jar:6.2.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339) ~[spring-beans-6.2.6.jar:6.2.6]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-6.2.6.jar:6.2.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337) ~[spring-beans-6.2.6.jar:6.2.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:202) ~[spring-beans-6.2.6.jar:6.2.6]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1221) ~[spring-beans-6.2.6.jar:6.2.6]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1187) ~[spring-beans-6.2.6.jar:6.2.6]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1122) ~[spring-beans-6.2.6.jar:6.2.6]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:987) ~[spring-context-6.2.6.jar:6.2.6]
