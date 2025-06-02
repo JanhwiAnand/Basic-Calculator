@@ -1,90 +1,65 @@
-import { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { forgotPassword } from '../redux/actions/authActions';
-import {
-  getAuthMessage,
-  getAuthError,
-  getAuthLoading
-} from '../redux/selectors/authSelectors';
+const express = require('express');
+const { login } = require('../controllers/authController');
+const { validateLogin } = require('../middleware/validationMiddleware');
 
-const ForgotPassword = () => {
-  const [firstname, setFirstname] = useState('');
-  const [lastname, setLastname] = useState('');
-  const [email, setEmail] = useState('');
+const router = express.Router();
 
-  const dispatch = useDispatch();
-  const loading = useSelector(getAuthLoading);
-  const error = useSelector(getAuthError);
-  const message = useSelector(getAuthMessage);
+router.post('/login', validateLogin, login);
+module.exports = router;
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    dispatch(forgotPassword(firstname, lastname, email));
-  };
 
-  return (
-    <div
-      style={{
-        minHeight: '100vh',
-        margin: 0,
-        padding: 0,
-        background: 'linear-gradient(to right, #74ebd5, #ACB6E5)',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
-      <div className="card p-4 shadow-lg rounded-4" style={{ width: '400px' }}>
-        <h4 className="text-center text-primary mb-4">Forgot Password</h4>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label className="form-label">First Name</label>
-            <input
-              type="text"
-              className="form-control"
-              value={firstname}
-              onChange={(e) => setFirstname(e.target.value)}
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Last Name</label>
-            <input
-              type="text"
-              className="form-control"
-              value={lastname}
-              onChange={(e) => setLastname(e.target.value)}
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Email</label>
-            <input
-              type="email"
-              className="form-control"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <button type="submit" className="btn btn-primary w-100" disabled={loading}>
-            {loading ? 'Submitting...' : 'Submit'}
-          </button>
-          {message && (
-            <div className="alert alert-success mt-3" role="alert">
-              {message}
-            </div>
-          )}
-          {error && (
-            <div className="alert alert-danger mt-3" role="alert">
-              {error}
-            </div>
-          )}
-        </form>
-      </div>
-    </div>
-  );
-};
-
-export default ForgotPassword;
+const asyncHandler = require('express-async-handler');
+const axios = require('axios');
+const jwt = require('jsonwebtoken');
+const CustomError = require('../utils/customError');
+const constants = require('../utils/constants');
+const env = require('../config/env');
+const logger = require('../utils/logger');
+const { handleAxiosError } = require('../utils/errorHandler');
+ 
+const login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+ 
+  if (!email || !password) {
+    throw new CustomError(
+      constants.errorMessages.MISSING_FIELDS,
+      constants.status.BAD_REQUEST
+    );
+  }
+ 
+  try {
+    // Send login request to Spring Boot API
+    const response = await axios.post(`${env.SPRING_BOOT_API}/api/auth/login`, {
+      email,
+      password,
+    });
+ 
+    const userRole = response.data.role;
+ 
+    // Ensure role is either ADMIN or EMPLOYEE
+    if (!['ADMIN', 'EMPLOYEE'].includes(userRole)) {
+      throw new CustomError('Invalid role returned from backend', constants.status.BAD_REQUEST);
+    }
+ 
+    // Generate JWT with single role
+    const token = jwt.sign(
+      {
+        sub: email,
+        role: userRole, // Fixed: single role instead of roles array
+      },
+      env.JWT_SECRET,
+      { expiresIn: constants.JWT_EXPIRES_IN }
+    );
+ 
+    logger.info(`User ${email} logged in successfully`);
+ 
+    res.status(constants.status.OK).json({
+      accessToken: token,
+      user: response.data,
+    });
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+ 
+module.exports = { login };
