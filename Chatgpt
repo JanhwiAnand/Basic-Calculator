@@ -12,3 +12,12 @@ String firstname = requestDTO.getFirstname();
                 .body(Collections.singletonMap("error", "User not found with provided details."));
     }
 }
+ @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        boolean valid = userService.validateUserForPasswordReset(request);
+        if (valid) {
+            return ResponseEntity.ok("User verified. You may reset password.");
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("User details not found or incorrect.");
+        }
+}
