@@ -1,65 +1,56 @@
-const express = require('express');
-const { login } = require('../controllers/authController');
-const { validateLogin } = require('../middleware/validationMiddleware');
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { firstname, lastname, email } = req.body;
 
-const router = express.Router();
+  if (!firstname || !lastname || !email) {
+    throw new CustomError(
+      constants.errorMessages.MISSING_FIELDS,
+      constants.status.BAD_REQUEST
+    );
+  }
 
-router.post('/login', validateLogin, login);
-module.exports = router;
+  try {
+    const response = await axios.post(`${env.SPRING_BOOT_API}/api/auth/forgot-password`, {
+      firstname,
+      lastname,
+      email
+    });
 
+    logger.info(`Forgot password request processed for ${email}`);
 
-const asyncHandler = require('express-async-handler');
-const axios = require('axios');
-const jwt = require('jsonwebtoken');
-const CustomError = require('../utils/customError');
-const constants = require('../utils/constants');
-const env = require('../config/env');
-const logger = require('../utils/logger');
-const { handleAxiosError } = require('../utils/errorHandler');
- 
-const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
- 
-  if (!email || !password) {
-    throw new CustomError(
-      constants.errorMessages.MISSING_FIELDS,
-      constants.status.BAD_REQUEST
-    );
-  }
- 
-  try {
-    // Send login request to Spring Boot API
-    const response = await axios.post(`${env.SPRING_BOOT_API}/api/auth/login`, {
-      email,
-      password,
-    });
- 
-    const userRole = response.data.role;
- 
-    // Ensure role is either ADMIN or EMPLOYEE
-    if (!['ADMIN', 'EMPLOYEE'].includes(userRole)) {
-      throw new CustomError('Invalid role returned from backend', constants.status.BAD_REQUEST);
-    }
- 
-    // Generate JWT with single role
-    const token = jwt.sign(
-      {
-        sub: email,
-        role: userRole, // Fixed: single role instead of roles array
-      },
-      env.JWT_SECRET,
-      { expiresIn: constants.JWT_EXPIRES_IN }
-    );
- 
-    logger.info(`User ${email} logged in successfully`);
- 
-    res.status(constants.status.OK).json({
-      accessToken: token,
-      user: response.data,
-    });
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
+    res.status(constants.status.OK).json({
+      message: response.data.message || 'Instructions sent if account exists.',
+    });
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
 });
- 
-module.exports = { login };
+
+validation mid
+const validateForgotPassword = (req, res, next) => {
+  const { firstname, lastname, email } = req.body;
+
+  if (!firstname || !lastname || !email) {
+    return res.status(400).json({ message: 'All fields are required.' });
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ message: 'Invalid email format.' });
+  }
+
+  next();
+};
+
+module.exports = {
+  validateLogin,
+  validateForgotPassword, // add this
+};
+errorMessages: {
+  MISSING_FIELDS: 'Required fields are missing.',
+  ...
+},
+status: {
+  OK: 200,
+  BAD_REQUEST: 400,
+  ...
+},
