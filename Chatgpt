@@ -1,175 +1,45 @@
-export const getToken = state => state.auth.token;
-export const getUser = state => state.auth.user;
-export const getAuthError = state => state.auth.error;
-export const getAuthLoading = state => state.auth.loading;
-export const getCurrentLeaves = state => state.leaves.currentLeaves;
-export const getAppliedLeaves = state => state.leaves.appliedLeaves;
-export const getLeaveHistory = state => state.leaves.leaveHistory || { content: [] };
-export const getLeaveBalances = state => state.leaves.leaveBalances;
-export const getLeaveError = state => state.leaves.error;
-export const getLeaveLoading = state => state.leaves.loading;
-export const getPendingLeaves = state => state.leaves.pendingLeaves;
-export const getAppliedLeavesByDateRange = state => state.leaves.appliedLeavesByDateRange || [];
-// Auth Reducer: Manages authentication state
-const initialState = {
-  token: sessionStorage.getItem('token') || null,
-  user: JSON.parse(sessionStorage.getItem('user')) || null,
-  error: null,
-  loading: false,
-};
+export const FORGOT_PASSWORD_REQUEST = 'FORGOT_PASSWORD_REQUEST';
+export const FORGOT_PASSWORD_SUCCESS = 'FORGOT_PASSWORD_SUCCESS';
+export const FORGOT_PASSWORD_FAILURE = 'FORGOT_PASSWORD_FAILURE';
 
-const authReducer = (state = initialState, action) => {
-  switch (action.type) {
-    case 'LOGIN_REQUEST':
-      return { ...state, loading: true, error: null };
-    case 'LOGIN_SUCCESS':
-      sessionStorage.setItem('token', action.payload.token);
-      sessionStorage.setItem('user', JSON.stringify(action.payload.user));
-      return { ...state, token: action.payload.token, user: action.payload.user, loading: false };
-    case 'LOGIN_FAILURE':
-      return { ...state, error: action.payload, loading: false };
-    case 'LOGOUT':
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('user');
-      return { ...state, token: null, user: null };
-    default:
-      return state;
+export const forgotPassword = (firstname, lastname, email) => async dispatch => {
+  dispatch({ type: FORGOT_PASSWORD_REQUEST });
+  try {
+    const response = await axios.post('http://localhost:5000/api/auth/forgot-password', {
+      firstname,
+      lastname,
+      email
+    });
+    dispatch({ type: FORGOT_PASSWORD_SUCCESS, payload: response.data.message });
+  } catch (error) {
+    dispatch({
+      type: FORGOT_PASSWORD_FAILURE,
+      payload: error.response?.data?.message || 'Request failed',
+    });
   }
 };
+reducer:-
+case 'FORGOT_PASSWORD_REQUEST':
+  return { ...state, loading: true, error: null };
 
-export default authReducer;// Auth Actions: Handles login and logout
-import axios from 'axios';
+case 'FORGOT_PASSWORD_SUCCESS':
+  return { ...state, loading: false, message: action.payload };
 
-export const LOGIN_REQUEST = 'LOGIN_REQUEST';
-export const LOGIN_SUCCESS = 'LOGIN_SUCCESS';
-export const LOGIN_FAILURE = 'LOGIN_FAILURE';
-export const LOGOUT = 'LOGOUT';
+case 'FORGOT_PASSWORD_FAILURE':
+  return { ...state, loading: false, error: action.payload };
 
-export const login = (email, password) => async dispatch => {
-    dispatch({ type: LOGIN_REQUEST });
-    try {
-        sessionStorage.removeItem('token');
-        const response = await axios.post('http://localhost:5000/api/auth/login', { email, password });
-        sessionStorage.setItem('token', response.data.accessToken);//token is a key whose value is comming in response
-        dispatch({ type: LOGIN_SUCCESS, payload: { token: response.data.accessToken, user: response.data.user } });
-        return response.data;
-    } catch (error) {
-        const message = error.response?.data?.errors?.[0] || 'Login failed';
-        dispatch({ type: LOGIN_FAILURE, payload: message });
-        throw error;
-    }
+form page
+import { useDispatch, useSelector } from 'react-redux';
+import { forgotPassword } from '../redux/actions/authActions';
+import { getAuthMessage, getAuthError, getAuthLoading } from '../redux/selectors/authSelectors';
+
+const dispatch = useDispatch();
+const loading = useSelector(getAuthLoading);
+const error = useSelector(getAuthError);
+const message = useSelector(getAuthMessage);
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  dispatch(forgotPassword(firstname, lastname, email));
 };
 
-export const logout = () => (dispatch) => {import { useState } from 'react';
-
-const ForgotPassword = () => {
-  const [firstname, setFirstname] = useState('');
-  const [lastname, setLastname] = useState('');
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState(null);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMessage(null);
-    setError(null);
-    setLoading(true);
-
-    try {
-      
-      /*
-      const response = await fetch('http://localhost:5000/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstname, lastname, email }),
-      });
-      const data = await response.json();
-
-      if (!response.ok) throw new Error(data.message || 'Failed to process request');
-      */
-
-      setTimeout(() => {
-        setLoading(false);
-        setMessage('If the details match, you will receive instructions to reset your password.');
-      }, 1500);
-    } catch (err) {
-      setLoading(false);
-      setError(err.message || 'Something went wrong');
-    }
-  };
-
-  return (
-    <div
-      style={{
-        minHeight: '100vh',
-        margin: 0,
-        padding: 0,
-        background: 'linear-gradient(to right, #74ebd5, #ACB6E5)',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
-      <div className="card p-4 shadow-lg rounded-4" style={{ width: '400px' }}>
-        <h4 className="text-center text-primary mb-4">Forgot Password</h4>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label className="form-label">First Name</label>
-            <input
-              type="text"
-              className="form-control"
-              value={firstname}
-              onChange={(e) => setFirstname(e.target.value)}
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Last Name</label>
-            <input
-              type="text"
-              className="form-control"
-              value={lastname}
-              onChange={(e) => setLastname(e.target.value)}
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Email</label>
-            <input
-              type="email"
-              className="form-control"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <button type="submit" className="btn btn-primary w-100" disabled={loading}>
-            {loading ? 'Submitting...' : 'Submit'}
-          </button>
-          {message && (
-            <div className="alert alert-success mt-3" role="alert">
-              {message}
-            </div>
-          )}
-          {error && (
-            <div className="alert alert-danger mt-3" role="alert">
-              {error}
-            </div>
-          )}
-        </form>
-      </div>
-    </div>
-  );
-};
-
-export default ForgotPassword;
-    sessionStorage.removeItem('token');
-    dispatch({ type: LOGOUT });
-};
-
-export const loginSuccess = (payload) => ({
-    type: LOGIN_SUCCESS,
-    payload,
-});
