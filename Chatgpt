@@ -1,33 +1,287 @@
-        @Service
-public class UserService {
+const asyncHandler = require('express-async-handler');
+const axios = require('axios');
+const jwt = require('jsonwebtoken');
+const CustomError = require('../utils/customError');
+const constants = require('../utils/constants');
+const env = require('../config/env');
+const logger = require('../utils/logger');
+const { handleAxiosError } = require('../utils/errorHandler');
 
-    @Autowired
-    private UserRepository userRepository;
 
-    public boolean validateUserForPasswordReset(ForgotPasswordRequest request) {
-        return userRepository.findByEmail(request.getEmail())
-                .filter(user -> user.getFirstName().equalsIgnoreCase(request.getFirstName()) &&
-                                user.getLastName().equalsIgnoreCase(request.getLastName()))
-                .isPresent();
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { firstname, lastname, email } = req.body;
+  console.log(req.body);
+  if (!firstname || !lastname || !email) {
+    throw new CustomError(
+      constants.errorMessages.MISSING_FIELDS,
+      constants.status.BAD_REQUEST
+    );
+  }
+
+  try {
+    const response = await axios.post(`${env.SPRING_BOOT_API}/api/auth/forgot-password`, {
+      firstname,
+      lastname,
+      email
+    });
+
+    logger.info(`Forgot password request processed for ${email}`);
+
+    res.status(constants.status.OK).json({
+      message: response.data.message || 'Instructions sent if account exists.',
+    });
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+const login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    throw new CustomError(
+      constants.errorMessages.MISSING_FIELDS,
+      constants.status.BAD_REQUEST
+    );
+  }
+
+  try {
+    // Send login request to Spring Boot API
+    const response = await axios.post(`${env.SPRING_BOOT_API}/api/auth/login`, {
+      email,
+      password,
+    });
+
+    const userRole = response.data.role;
+
+    // Ensure role is either ADMIN or EMPLOYEE
+    if (!['ADMIN', 'EMPLOYEE'].includes(userRole)) {
+      throw new CustomError('Invalid role returned from backend', constants.status.BAD_REQUEST);
     }
 
-    // Optional: generate token & send email or allow reset directly
-}
+    // Generate JWT with single role
+    const token = jwt.sign(
+      {
+        sub: email,
+        role: userRole, // Fixed: single role instead of roles array
+      },
+      env.JWT_SECRET,
+      { expiresIn: constants.JWT_EXPIRES_IN }
+    );
 
-@RestController
-@RequestMapping("/api/users")
-public class UserController {
+    logger.info(`User ${email} logged in successfully`);
 
-    @Autowired
-    private UserService userService;
+    res.status(constants.status.OK).json({
+      accessToken: token,
+      user: response.data,
+    });
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
 
-    @PostMapping("/forgot-password")
-    public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
-        boolean valid = userService.validateUserForPasswordReset(request);
-        if (valid) {
-            return ResponseEntity.ok("User verified. You may reset password.");
-        } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("User details not found or incorrect.");
-        }
+module.exports = { login,forgotPassword };
+const { body, query, param, validationResult } = require('express-validator');
+const CustomError = require('../utils/customError');
+const constants = require('../utils/constants');
+const logger = require('../utils/logger');
+
+const validateForgotPassword = (req, res, next) => {
+  const { firstname, lastname, email } = req.body;
+
+  if (!firstname || !lastname || !email) {
+    return res.status(400).json({ message: 'All fields are required.' });
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ message: 'Invalid email format.' });
+  }
+
+  next();
+};
+
+const validateLogin = [
+  body('email')
+    .notEmpty()
+    .withMessage('Email is required')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .matches(constants.EMAIL_REGEX)
+    .withMessage('Email must end with @infinite.com'),
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required')
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters long')
+    .matches(constants.PASSWORD_REGEX)
+    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
     }
-}
+    next();
+  },
+];
+
+const validateLeaveRequest = [
+  body('employeeEmail')
+    .notEmpty()
+    .withMessage('Employee email is required')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .matches(constants.EMAIL_REGEX)
+    .withMessage('Email must end with @infinite.com'),
+  body('startDate')
+    .notEmpty()
+    .withMessage('Start date is required')
+    .isDate()
+    .withMessage('Invalid start date format'),
+  body('endDate')
+    .notEmpty()
+    .withMessage('End date is required')
+    .isDate()
+    .withMessage('Invalid end date format'),
+  body('reason')
+    .notEmpty()
+    .withMessage('Reason is required'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateLeaveId = [
+  param('leaveId')
+    .isInt({ min: 1 })
+    .withMessage('Leave ID must be a positive integer'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateRejectLeave = [
+  body('declineReason')
+    .notEmpty()
+    .withMessage('Decline reason is required'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateUsernameQuery = [
+  query('employeeEmail')
+    .notEmpty()
+    .withMessage('Employee email is required idhar')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .matches(constants.EMAIL_REGEX)
+    .withMessage('Email must end with @infinite.com'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateHistoryQuery = [
+  query('employeeEmail')
+    .notEmpty()
+    .withMessage('Employee email is required')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .matches(constants.EMAIL_REGEX)
+    .withMessage('Email must end with @infinite.com'),
+  query('year')
+    .optional()
+    .isInt({ min: 2000, max: 2100 })
+    .withMessage('Year must be between 2000 and 2100'),
+  query('page')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Page must be a non-negative integer'),
+  query('size')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Size must be a positive integer'),
+  query('sortBy')
+    .optional()
+    .isIn(['startDate', 'endDate', 'status'])
+    .withMessage('Sort by must be one of: startDate, endDate, status'),
+  query('direction')
+    .optional()
+    .isIn(['ASC', 'DESC'])
+    .withMessage('Direction must be ASC or DESC'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateUserUpdate = [
+  body('employeeEmail')
+    .notEmpty()
+    .withMessage('Employee email is required')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .matches(constants.EMAIL_REGEX)
+    .withMessage('Email must end with @infinite.com'),
+  body('firstName')
+    .optional()
+    .isString()
+    .withMessage('First name must be a string'),
+  body('lastName')
+    .optional()
+    .isString()
+    .withMessage('Last name must be a string'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+module.exports = {
+  validateForgotPassword,
+  validateLogin,
+  validateLeaveRequest,
+  validateLeaveId,
+  validateRejectLeave,
+  validateUsernameQuery,
+  validateHistoryQuery,
+  validateUserUpdate,
+};
+
