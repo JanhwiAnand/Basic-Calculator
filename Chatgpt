@@ -1,25 +1,38 @@
-Uncaught runtime errors:
-×
-ERROR
-Request failed with status code 401
-AxiosError: Request failed with status code 401
-    at settle (http://localhost:3000/static/js/bundle.js:10655:12)
-    at XMLHttpRequest.onloadend (http://localhost:3000/static/js/bundle.js:9282:66)
-    at Axios.request (http://localhost:3000/static/js/bundle.js:9781:41)
-    at async http://localhost:3000/static/js/bundle.js:83452:22
+package com.example.ems.repository;
 
- Error creating bean with name 'leaveController' defined in file [C:\Users\janhwia\git\ems\target\classes\com\example\ems\controller\LeaveController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'leaveServiceImpl' defined in file [C:\Users\janhwia\git\ems\target\classes\com\example\ems\service\LeaveServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'leaveRequestRepository' defined in com.example.ems.repository.LeaveRequestRepository defined in @EnableJpaRepositories declared on JpaRepositoriesRegistrar.EnableJpaRepositoriesConfiguration: Could not create query for public abstract org.springframework.data.domain.Page com.example.ems.repository.LeaveRequestRepository.findByStatusWithUserDetails(com.example.ems.enums.LeaveStatus,org.springframework.data.domain.Pageable); Reason: Validation failed for query for method public abstract org.springframework.data.domain.Page com.example.ems.repository.LeaveRequestRepository.findByStatusWithUserDetails(com.example.ems.enums.LeaveStatus,org.springframework.data.domain.Pageable)
-	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804) ~[spring-beans-6.2.6.jar:6.2.6]
-	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240) ~[spring-beans-6.2.6.jar:6.2.6]
-	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1387) ~[spring-beans-6.2.6.jar:6.2.6]
-	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1224) ~[spring-beans-6.2.6.jar:6.2.6]
-	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:569) ~[spring-beans-6.2.6.jar:6.2.6]
-	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:529) ~[spring-beans-6.2.6.jar:6.2.6]
-	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339) ~[spring-beans-6.2.6.jar:6.2.6]
-	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-6.2.6.jar:6.2.6]
-	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337) ~[spring-beans-6.2.6.jar:6.2.6]
-	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:202) ~[spring-beans-6.2.6.jar:6.2.6]
-	at org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1221) ~[spring-beans-6.2.6.jar:6.2.6]
-	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1187) ~[spring-beans-6.2.6.jar:6.2.6]
-	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1122) ~[spring-beans-6.2.6.jar:6.2.6]
-	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:987) ~[spring-context-6.2.6.jar:6.2.6]
+import com.example.ems.dto.LeaveResponseDto;
+import com.example.ems.entity.LeaveRequest;
+import com.example.ems.enums.LeaveStatus;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime; // Add this import
+import java.util.List;
+
+public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long>, JpaSpecificationExecutor<LeaveRequest> {
+
+    Page<LeaveRequest> findByUserEmailOrderByStartDateDesc(String email, Pageable pageable);
+
+    @Query("SELECT lr FROM LeaveRequest lr WHERE lr.user.email = :email AND " +
+           "((lr.startDate <= :endDate AND lr.endDate >= :startDate) AND lr.status = 'APPROVED')")
+    List<LeaveRequest> findOverlappingLeaves(String email, LocalDate startDate, LocalDate endDate);
+
+    @Query("SELECT SUM(DATEDIFF(lr.endDate, lr.startDate) + 1) FROM LeaveRequest lr " +
+           "WHERE lr.user.email = :email AND YEAR(lr.startDate) = :year AND lr.status = 'APPROVED'")
+    Long calculateLeaveDays(String email, int year);
+
+    List<LeaveRequest> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end); 
+    
+    @Query("SELECT new com.example.ems.dto.LeaveResponseDto(" +
+            "lr.id, u.firstname, u.lastname, u.email, " +
+            "lr.startDate, lr.endDate, lr.reason, lr.category, lr.status) " +
+            "FROM LeaveRequest lr " +
+            "JOIN lr.user u " +
+            "WHERE lr.status = :status")
+     Page<LeaveResponseDto> findByStatusWithUserDetails(LeaveStatus status, Pageable pageable);
+ }
