@@ -1,16 +1,56 @@
- @GetMapping("/pending")
-    public Page<LeaveRequest> getPendingLeaves(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        logger.info("Fetching pending leaves, page: {}, size: {}", page, size);
-        Pageable pageable = PageRequest.of(page, size);
-        Page<LeaveRequest> allLeaves = leaveService.getAllLeaveHistory(pageable);
-        List<LeaveRequest> pendingLeaves = allLeaves.getContent().stream()
-                .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
-                .collect(Collectors.toList());
-        return new PageImpl<>(pendingLeaves, pageable, allLeaves.getTotalElements());
-    }->in leave controller
-  public Page<LeaveRequest> getAllLeaveHistory(Pageable pageable) {
-        logger.info("Fetching all leave history");
-        return leaveRequestRepository.findAll(pageable);
-    }->in service
+ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> {
+
+    @Query("SELECT new com.example.ems.dto.LeaveResponseDto(" +
+           "lr.id, u.firstname, u.lastname, u.email, " +
+           "lr.startDate, lr.endDate, lr.reason, lr.category, lr.status) " +
+           "FROM LeaveRequest lr " +
+           "JOIN lr.user u " +
+           "WHERE lr.status = :status")
+    Page<LeaveResponseDto> findByStatusWithUserDetails(LeaveStatus status, Pageable pageable);
+}
+✅ Step 3: Update LeaveService method
+java
+Copy code
+public Page<LeaveResponseDto> getPendingLeaves(Pageable pageable) {
+    logger.info("Fetching pending leaves with user details");
+    return leaveRequestRepository.findByStatusWithUserDetails(LeaveStatus.PENDING, pageable);
+}
+✅ Step 4: Update Controller method
+java
+Copy code
+@GetMapping("/pending")
+public Page<LeaveResponseDto> getPendingLeaves(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size) {
+    logger.info("Fetching pending leaves, page: {}, size: {}", page, size);
+    Pageable pageable = PageRequest.of(page, size);
+    return leaveService.getPendingLeaves(pageable);
+}
+✅ Step 5: Frontend receives enriched response
+Now frontend gets data like this:
+
+json
+Copy code
+[
+  {
+    "leaveId": 1,
+    "firstname": "John",
+    "lastname": "Doe",
+    "email": "john@infinite.com",
+    "startDate": "2025-06-10",
+    "endDate": "2025-06-15",
+    "reason": "Vacation",
+    "category": "Annual",
+    "status": "PENDING"
+  },
+  ...
+]
+You can now display the employee’s full name directly.
+
+Let me know if you want to add filters (e.g. by date range) too.
+
+
+
+
+
+
