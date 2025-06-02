@@ -1,38 +1,8 @@
-// Auth Actions: Handles login and logout
-import axios from 'axios';
-
-export const LOGIN_REQUEST = 'LOGIN_REQUEST';
-export const LOGIN_SUCCESS = 'LOGIN_SUCCESS';
-export const LOGIN_FAILURE = 'LOGIN_FAILURE';
-export const LOGOUT = 'LOGOUT';
-
-export const login = (email, password) => async dispatch => {
-    dispatch({ type: LOGIN_REQUEST });
-    try {
-        sessionStorage.removeItem('token');
-        const response = await axios.post('http://localhost:5000/api/auth/login', { email, password });
-        sessionStorage.setItem('token', response.data.accessToken);//token is a key whose value is comming in response
-        dispatch({ type: LOGIN_SUCCESS, payload: { token: response.data.accessToken, user: response.data.user } });
-        return response.data;
-    } catch (error) {
-        const message = error.response?.data?.errors?.[0] || 'Login failed';
-        dispatch({ type: LOGIN_FAILURE, payload: message });
-        throw error;
-    }
-};
-
-export const logout = () => (dispatch) => {
-    sessionStorage.removeItem('token');
-    dispatch({ type: LOGOUT });
-};
-
-export const loginSuccess = (payload) => ({
-    type: LOGIN_SUCCESS,
-    payload,
-});import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { login } from '../redux/actions/authActions';
-// import '../css/Login.css'
+import { NavLink } from 'react-router-dom';
+
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,10 +10,12 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
 
   const dispatch = useDispatch();
-  useEffect(()=>{
-    document.body.style.margin='0';
-    document.body.style.padding='0';
-  },[])
+
+  useEffect(() => {
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -58,8 +30,16 @@ const Login = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh',margin:0,padding:0, background: 'linear-gradient(to right, #74ebd5, #ACB6E5)', display: 'flex', flexDirection: 'column' }}>
-      
+    <div
+      style={{
+        minHeight: '100vh',
+        margin: 0,
+        padding: 0,
+        background: 'linear-gradient(to right, #74ebd5, #ACB6E5)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       {/* Header */}
       <header className="bg-white shadow-sm p-3 text-center">
         <h3 className="text-primary mb-0">Employee Leave Management System</h3>
@@ -102,6 +82,13 @@ const Login = () => {
                 </div>
               )}
             </form>
+
+            {/* Forgot Password Link */}
+            <div className="text-center mt-3">
+              <NavLink to="/forgot-password" className="text-primary">
+                Forgot Password?
+              </NavLink>
+            </div>
           </div>
         </div>
       </div>
