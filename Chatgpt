@@ -1,8 +1,14 @@
-Hibernate: select u1_0.id,u1_0.city,u1_0.country,u1_0.date_of_joining,u1_0.department,u1_0.email,u1_0.firstname,u1_0.lastname,u1_0.password,u1_0.phnno,u1_0.role,u1_0.state from user u1_0 where u1_0.email=?
-2025-06-02T17:24:49.002+05:30 DEBUG 21512 --- [nio-8080-exec-1] o.s.s.w.a.AnonymousAuthenticationFilter  : Set SecurityContextHolder to anonymous SecurityContext
-2025-06-02T17:25:03.525+05:30 DEBUG 21512 --- [nio-8080-exec-8] o.s.security.web.FilterChainProxy        : Securing POST /api/auth/forgot-password
-2025-06-02T17:25:03.529+05:30  INFO 21512 --- [nio-8080-exec-8] com.example.ems.config.JwtFilter         : Authorization header: null
-2025-06-02T17:25:03.530+05:30  WARN 21512 --- [nio-8080-exec-8] com.example.ems.config.JwtFilter         : No Authorization header found or invalid format
-2025-06-02T17:25:03.530+05:30 DEBUG 21512 --- [nio-8080-exec-8] o.s.security.web.FilterChainProxy        : Secured POST /api/auth/forgot-password
-Hibernate: select u1_0.id,u1_0.city,u1_0.country,u1_0.date_of_joining,u1_0.department,u1_0.email,u1_0.firstname,u1_0.lastname,u1_0.password,u1_0.phnno,u1_0.role,u1_0.state from user u1_0 where u1_0.email=?
-2025-06-02T17:25:03.578+05:30 DEBUG 21512 --- [nio-8080-exec-8] o.s.s.w.a.AnonymousAuthenticationFilter  : Set SecurityContextHolder to anonymous SecurityContext
+String firstname = requestDTO.getFirstname();
+    String lastname = requestDTO.getLastname();
+    String email = requestDTO.getEmail();
+
+    Optional<User> userOptional = userRepository.findByFirstnameAndLastnameAndEmail(firstname, lastname, email);
+
+    if (userOptional.isPresent()) {
+        // You can log or trigger a token flow here if needed
+        return ResponseEntity.ok().body(Collections.singletonMap("message", "User verified. Proceed to reset password."));
+    } else {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Collections.singletonMap("error", "User not found with provided details."));
+    }
+}
