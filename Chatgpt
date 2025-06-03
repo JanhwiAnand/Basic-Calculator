@@ -1,115 +1,98 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { resetPassword } from '../redux/actions/authActions';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { forgotPassword } from '../redux/actions/authActions';
+import {
+  getAuthMessage,
+  getAuthError,
+  getAuthLoading
+} from '../redux/selectors';
 
-const ResetPasswordForm = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
+import { useNavigate } from 'react-router-dom';
+const ForgotPassword = () => {
+  const [firstname, setFirstname] = useState('');
+  const [lastname, setLastname] = useState('');
+  const [email, setEmail] = useState('');
+
   const dispatch = useDispatch();
-
-  const [email] = useState(location.state?.email || '');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState({});
-
-  const { loading, message, error } = useSelector((state) => state.resetPassword);
-
-  // ✅ Password complexity check
-  const validate = () => {
-    const errs = {};
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*]).{8,}$/;
-
-    if (!passwordRegex.test(newPassword)) {
-      errs.newPassword =
-        'Password must be at least 8 characters, include uppercase, lowercase, and special character';
-    }
-
-    if (newPassword !== confirmPassword) {
-      errs.confirmPassword = 'Passwords do not match';
-    }
-
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
+  const navigate=useNavigate();
+  const loading = useSelector(getAuthLoading);
+  const error = useSelector(getAuthError);
+  const message = useSelector(getAuthMessage);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (validate()) {
-      dispatch(resetPassword({ email, newPassword }));
-    }
+    console.log(firstname,lastname,email);
+    dispatch(forgotPassword(firstname, lastname, email));
+    
   };
-
-  useEffect(() => {
-    if (message) {
-      setTimeout(() => navigate('/login'), 1500);
+  useEffect(()=>{
+    if(message){
+        navigate('/reset-password',{state:{email}});
     }
-  }, [message, navigate]);
-
+  },[message,navigate,email])
   return (
-    <div className="container mt-5">
-      <h3 className="text-center mb-4">Reset Password</h3>
-      <form onSubmit={handleSubmit} className="w-50 mx-auto">
-        <div className="mb-3">
-          <label>Email</label>
-          <input
-            type="email"
-            className="form-control"
-            value={email}
-            readOnly
-          />
-        </div>
-
-        <div className="mb-3">
-          <label>New Password</label>
-          <div className="input-group">
+    <div
+      style={{
+        minHeight: '100vh',
+        margin: 0,
+        padding: 0,
+        background: 'linear-gradient(to right, #74ebd5, #ACB6E5)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <div className="card p-4 shadow-lg rounded-4" style={{ width: '400px' }}>
+        <h4 className="text-center text-primary mb-4">Forgot Password</h4>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label className="form-label">First Name</label>
             <input
-              type={showPassword ? 'text' : 'password'}
+              type="text"
               className="form-control"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
+              value={firstname}
+              onChange={(e) => setFirstname(e.target.value)}
               required
             />
-            <span
-              className="input-group-text"
-              onClick={() => setShowPassword(!showPassword)}
-              style={{ cursor: 'pointer' }}
-            >
-              {showPassword ? '🙈' : '👁️'}
-            </span>
           </div>
-          {errors.newPassword && (
-            <div className="text-danger">{errors.newPassword}</div>
+          <div className="mb-3">
+            <label className="form-label">Last Name</label>
+            <input
+              type="text"
+              className="form-control"
+              value={lastname}
+              onChange={(e) => setLastname(e.target.value)}
+              required
+            />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Email</label>
+            <input
+              type="email"
+              className="form-control"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" className="btn btn-primary w-100" disabled={loading}>
+            {loading ? 'Submitting...' : 'Submit'}
+          </button>
+          {message && (
+            <div className="alert alert-success mt-3" role="alert">
+              {message}
+            </div>
           )}
-        </div>
-
-        <div className="mb-3">
-          <label>Confirm Password</label>
-          <input
-            type={showPassword ? 'text' : 'password'}
-            className="form-control"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-          />
-          {errors.confirmPassword && (
-            <div className="text-danger">{errors.confirmPassword}</div>
+          {error && (
+            <div className="alert alert-danger mt-3" role="alert">
+              {error}
+            </div>
           )}
-        </div>
-
-        <button
-          className="btn btn-primary w-100"
-          disabled={loading || !newPassword || !confirmPassword}
-        >
-          {loading ? 'Resetting...' : 'Reset Password'}
-        </button>
-
-        {message && <div className="alert alert-success mt-3">{message}</div>}
-        {error && <div className="alert alert-danger mt-3">{error}</div>}
-      </form>
+        </form>
+      </div>
     </div>
   );
 };
 
-export default ResetPasswordForm;
+export default ForgotPassword;
