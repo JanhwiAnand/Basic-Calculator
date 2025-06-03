@@ -1,4 +1,8 @@
-Forgot password api aman@infinite.com
-Hibernate: select u1_0.id,u1_0.city,u1_0.country,u1_0.date_of_joining,u1_0.department,u1_0.email,u1_0.firstname,u1_0.lastname,u1_0.password,u1_0.phnno,u1_0.role,u1_0.state from user u1_0 where u1_0.email=?
-Hibernate: select u1_0.id,u1_0.city,u1_0.country,u1_0.date_of_joining,u1_0.department,u1_0.email,u1_0.firstname,u1_0.lastname,u1_0.password,u1_0.phnno,u1_0.role,u1_0.state from user u1_0 where u1_0.email=?
-2025-06-03T05:30:40.938+05:30 DEBUG 17996 --- [nio-8080-exec-1] o.s.s.w.a.AnonymousAuthenticationFilter  : Set SecurityContextHolder to anonymous SecurityContext
+if (user.getFirstname().equalsIgnoreCase(request.getFirstname()) &&
+        user.getLastname().equalsIgnoreCase(request.getLastname())) {
+        logger.info("✅ First name and last name match for email: {}", request.getEmail());
+        return true;
+    } else {
+        logger.warn("❌ First name or last name did not match for email: {}", request.getEmail());
+        return false;
+    }
