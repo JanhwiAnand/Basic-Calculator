@@ -1,251 +1,322 @@
-import { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { resetPassword } from '../redux/actions/authActions';
-import { useLocation, useNavigate } from 'react-router-dom';
+const express = require('express');
+const cors = require('cors');
+const env = require('./config/env');
+const authRoutes = require('./routes/authRoutes');
+const leaveRoutes = require('./routes/leaveRoutes');
+const userRoutes = require('./routes/userRoutes');
+const { errorMiddleware } = require('./middleware/errorMiddleware');
+const logger = require('./utils/logger');
 
-const ResetPasswordForm = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
+const app = express();
+//app.use applies middleware to the application
+app.use(cors({ origin: 'http://localhost:3000' }));//request from this address will be allowed
+app.use(express.json());//to read the request body(express don't understand the json body format)
+app.use(express.urlencoded({ extended: true }));//to parse url
 
-  const [email] = useState(location.state?.email || '');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState({});
+app.use('/api/auth', authRoutes);
+app.use('/api/leaves', leaveRoutes);
+app.use('/api/users', userRoutes);
 
-  const { loading, message, error } = useSelector((state) => state.resetPassword);
+app.use(errorMiddleware);
 
-  const validate = () => {
-    const errs = {};
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*]).{8,}$/;
+app.listen(env.PORT, () => {
+  logger.info(`Server running on port ${env.PORT}`);
+});const asyncHandler = require('express-async-handler');
+const axios = require('axios');
+const jwt = require('jsonwebtoken');
+const CustomError = require('../utils/customError');
+const constants = require('../utils/constants');
+const env = require('../config/env');
+const logger = require('../utils/logger');
+const { handleAxiosError } = require('../utils/errorHandler');
 
-    if (!passwordRegex.test(newPassword)) {
-      errs.newPassword =
-        'Password must be at least 8 characters, include uppercase, lowercase, and special character';
-    }
 
-    if (newPassword !== confirmPassword) {
-      errs.confirmPassword = 'Passwords do not match';
-    }
-
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (validate()) {
-      dispatch(resetPassword({ email, newPassword }));
-    }
-  };
-
-  useEffect(() => {
-    if (message) {
-      setTimeout(() => navigate('/login'), 1500);
-    }
-  }, [message, navigate]);
-
-  return (
-    <div className="container mt-5">
-      <h3 className="text-center mb-4">Reset Password</h3>
-      <form onSubmit={handleSubmit} className="w-50 mx-auto">
-        <div className="mb-3">
-          <label>Email</label>
-          <input
-            type="email"
-            className="form-control"
-            value={email}
-            readOnly
-          />
-        </div>
-
-        <div className="mb-3">
-          <label>New Password</label>
-          <div className="input-group">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              className="form-control"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-            />
-            <span
-              className="input-group-text"
-              onClick={() => setShowPassword(!showPassword)}
-              style={{ cursor: 'pointer' }}
-            >
-              {showPassword ? '🙈' : '👁️'}
-            </span>
-          </div>
-          {errors.newPassword && (
-            <div className="text-danger">{errors.newPassword}</div>
-          )}
-        </div>
-
-        <div className="mb-3">
-          <label>Confirm Password</label>
-          <input
-            type={showPassword ? 'text' : 'password'}
-            className="form-control"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-          />
-          {errors.confirmPassword && (
-            <div className="text-danger">{errors.confirmPassword}</div>
-          )}
-        </div>
-
-        <button
-          className="btn btn-primary w-100"
-          disabled={loading || !newPassword || !confirmPassword}
-        >
-          {loading ? 'Resetting...' : 'Reset Password'}
-        </button>
-
-        {message && <div className="alert alert-success mt-3">{message}</div>}
-        {error && <div className="alert alert-danger mt-3">{error}</div>}
-      </form>
-    </div>
-  );
-};
-
-export default ResetPasswordForm;export const getToken = state => state.auth.token;
-export const getUser = state => state.auth.user;
-export const getAuthError = state => state.auth.error;
-export const getAuthLoading = state => state.auth.loading;
-export const getCurrentLeaves = state => state.leaves.currentLeaves;
-export const getAppliedLeaves = state => state.leaves.appliedLeaves;
-export const getLeaveHistory = state => state.leaves.leaveHistory || { content: [] };
-export const getLeaveBalances = state => state.leaves.leaveBalances;
-export const getLeaveError = state => state.leaves.error;
-export const getLeaveLoading = state => state.leaves.loading;
-export const getPendingLeaves = state => state.leaves.pendingLeaves;
-export const getAppliedLeavesByDateRange = state => state.leaves.appliedLeavesByDateRange || [];
-//for forgot password part
-export const getAuthMessage=state=>state.auth.message;
-// Auth Reducer: Manages authentication state
-const initialState = {
-  token: sessionStorage.getItem('token') || null,
-  user: JSON.parse(sessionStorage.getItem('user')) || null,
-  error: null,
-  loading: false,
-  message: null,
-};
-
-const authReducer = (state = initialState, action) => {
-  switch (action.type) {
-    case 'FORGOT_PASSWORD_REQUEST':
-      return { ...state, loading: true, error: null };
-
-    case 'FORGOT_PASSWORD_SUCCESS':
-      return { ...state, loading: false, message: action.payload.message,verifiedEmail:action.payload.email };
-
-    case 'FORGOT_PASSWORD_FAILURE':
-      return { ...state, loading: false, error: action.payload };
-
-    case 'RESET_PASSWORD_REQUEST':
-      return { ...state, loading: true, message: null, error: null };
-    case 'RESET_PASSWORD_SUCCESS':
-      return { ...state, loading: false, message: action.payload };
-    case 'RESET_PASSWORD_FAILURE':
-      return { ...state, loading: false, error: action.payload };
-
-    case 'LOGIN_REQUEST':
-      return { ...state, loading: true, error: null };
-    case 'LOGIN_SUCCESS':
-      sessionStorage.setItem('token', action.payload.token);
-      sessionStorage.setItem('user', JSON.stringify(action.payload.user));
-      return { ...state, token: action.payload.token, user: action.payload.user, loading: false };
-    case 'LOGIN_FAILURE':
-      return { ...state, error: action.payload, loading: false };
-    case 'LOGOUT':
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('user');
-      return { ...state, token: null, user: null };
-    default:
-      return state;
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { firstname, lastname, email } = req.body;
+  console.log(req.body);
+  if (!firstname || !lastname || !email) {
+    throw new CustomError(
+      constants.errorMessages.MISSING_FIELDS,
+      constants.status.BAD_REQUEST
+    );
   }
-};
 
-export default authReducer;// Auth Actions: Handles login and logout
-import axios from 'axios';
-
-export const LOGIN_REQUEST = 'LOGIN_REQUEST';
-export const LOGIN_SUCCESS = 'LOGIN_SUCCESS';
-export const LOGIN_FAILURE = 'LOGIN_FAILURE';
-
-//for forgot password things
-export const FORGOT_PASSWORD_REQUEST='FORGOT_PASSWORD_REQUEST';
-export const FORGOT_PASSWORD_SUCCESS='FORGOT_PASSWORD_SUCCESS';
-export const FORGOT_PASSWORD_FAILURE='FORGOT_PASSWORD_FAILURE';
-
-//for reset password
-export const RESET_PASSWORD_REQUEST = 'RESET_PASSWORD_REQUEST';
-export const RESET_PASSWORD_SUCCESS = 'RESET_PASSWORD_SUCCESS';
-export const RESET_PASSWORD_FAILURE = 'RESET_PASSWORD_FAILURE';
-
-//for logout page
-export const LOGOUT = 'LOGOUT';
-
-export const forgotPassword = (firstname, lastname, email) => async dispatch => {
-    console.log(firstname,lastname,email)
-  dispatch({ type: FORGOT_PASSWORD_REQUEST });
-  console.log(firstname,lastname,email)
   try {
-    const response = await axios.post('http://localhost:5000/api/auth/forgot-password', {
+    const response = await axios.post(`${env.SPRING_BOOT_API}/api/auth/forgot-password`, {
       firstname,
       lastname,
       email
     });
-    // console.log(response)
-    dispatch({ type: FORGOT_PASSWORD_SUCCESS, payload: response.data.message });
-    return true;
+
+    logger.info(`Forgot password request processed for ${email}`);
+    res.json({success:true,message:response.data});
+    console.log(response.data);
+
+   
   } catch (error) {
-    dispatch({
-      type: FORGOT_PASSWORD_FAILURE,
-      payload: error.response?.data?.message || 'Request failed',
-    });
+    res.status(400).json({success:false,message:"Invalid user details"});
+    handleAxiosError(error, res);
   }
-};
-export const resetPassword = ({email,newPassword}) => async dispatch => {
-  dispatch({ type: RESET_PASSWORD_REQUEST });
-  try {
-    const response = await axios.post('http://localhost:5000/api/auth/reset-password', {
-      email,
-      newPassword
-    });
-    dispatch({ type: RESET_PASSWORD_SUCCESS, payload: response.data.message });
-  } catch (error) {
-    dispatch({
-      type: RESET_PASSWORD_FAILURE,
-      payload: error.response?.data?.message || 'Reset failed',
-    });
-  }
-};
-
-export const login = (email, password) => async dispatch => {
-    dispatch({ type: LOGIN_REQUEST });
-    try {
-        sessionStorage.removeItem('token');
-        const response = await axios.post('http://localhost:5000/api/auth/login', { email, password });
-        sessionStorage.setItem('token', response.data.accessToken);//token is a key whose value is comming in response
-        dispatch({ type: LOGIN_SUCCESS, payload: { token: response.data.accessToken, user: response.data.user } });
-        return response.data;
-    } catch (error) {
-        const message = error.response?.data?.errors?.[0] || 'Login failed';
-        dispatch({ type: LOGIN_FAILURE, payload: message });
-        throw error;
-    }
-};
-
-export const logout = () => (dispatch) => {
-    sessionStorage.removeItem('token');
-    dispatch({ type: LOGOUT });
-};
-
-export const loginSuccess = (payload) => ({
-    type: LOGIN_SUCCESS,
-    payload,
 });
+
+const login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    throw new CustomError(
+      constants.errorMessages.MISSING_FIELDS,
+      constants.status.BAD_REQUEST
+    );
+  }
+
+  try {
+    // Send login request to Spring Boot API
+    const response = await axios.post(`${env.SPRING_BOOT_API}/api/auth/login`, {
+      email,
+      password,
+    });
+
+    const userRole = response.data.role;
+
+    // Ensure role is either ADMIN or EMPLOYEE
+    if (!['ADMIN', 'EMPLOYEE'].includes(userRole)) {
+      throw new CustomError('Invalid role returned from backend', constants.status.BAD_REQUEST);
+    }
+
+    // Generate JWT with single role
+    const token = jwt.sign(
+      {
+        sub: email,
+        role: userRole, // Fixed: single role instead of roles array
+      },
+      env.JWT_SECRET,
+      { expiresIn: constants.JWT_EXPIRES_IN }
+    );
+
+    logger.info(`User ${email} logged in successfully`);
+
+    res.status(constants.status.OK).json({
+      accessToken: token,
+      user: response.data,
+    });
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
+
+module.exports = { login,forgotPassword };const { body, query, param, validationResult } = require('express-validator');
+const CustomError = require('../utils/customError');
+const constants = require('../utils/constants');
+const logger = require('../utils/logger');
+
+const validateForgotPassword = (req, res, next) => {
+  const { firstname, lastname, email } = req.body;
+
+  if (!firstname || !lastname || !email) {
+    return res.status(400).json({ message: 'All fields are required.' });
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ message: 'Invalid email format.' });
+  }
+
+  next();
+};
+
+const validateLogin = [
+  body('email')
+    .notEmpty()
+    .withMessage('Email is required')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .matches(constants.EMAIL_REGEX)
+    .withMessage('Email must end with @infinite.com'),
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required')
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters long')
+    .matches(constants.PASSWORD_REGEX)
+    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateLeaveRequest = [
+  body('employeeEmail')
+    .notEmpty()
+    .withMessage('Employee email is required')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .matches(constants.EMAIL_REGEX)
+    .withMessage('Email must end with @infinite.com'),
+  body('startDate')
+    .notEmpty()
+    .withMessage('Start date is required')
+    .isDate()
+    .withMessage('Invalid start date format'),
+  body('endDate')
+    .notEmpty()
+    .withMessage('End date is required')
+    .isDate()
+    .withMessage('Invalid end date format'),
+  body('reason')
+    .notEmpty()
+    .withMessage('Reason is required'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateLeaveId = [
+  param('leaveId')
+    .isInt({ min: 1 })
+    .withMessage('Leave ID must be a positive integer'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateRejectLeave = [
+  body('declineReason')
+    .notEmpty()
+    .withMessage('Decline reason is required'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateUsernameQuery = [
+  query('employeeEmail')
+    .notEmpty()
+    .withMessage('Employee email is required idhar')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .matches(constants.EMAIL_REGEX)
+    .withMessage('Email must end with @infinite.com'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateHistoryQuery = [
+  query('employeeEmail')
+    .notEmpty()
+    .withMessage('Employee email is required')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .matches(constants.EMAIL_REGEX)
+    .withMessage('Email must end with @infinite.com'),
+  query('year')
+    .optional()
+    .isInt({ min: 2000, max: 2100 })
+    .withMessage('Year must be between 2000 and 2100'),
+  query('page')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Page must be a non-negative integer'),
+  query('size')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Size must be a positive integer'),
+  query('sortBy')
+    .optional()
+    .isIn(['startDate', 'endDate', 'status'])
+    .withMessage('Sort by must be one of: startDate, endDate, status'),
+  query('direction')
+    .optional()
+    .isIn(['ASC', 'DESC'])
+    .withMessage('Direction must be ASC or DESC'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+const validateUserUpdate = [
+  body('employeeEmail')
+    .notEmpty()
+    .withMessage('Employee email is required')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .matches(constants.EMAIL_REGEX)
+    .withMessage('Email must end with @infinite.com'),
+  body('firstName')
+    .optional()
+    .isString()
+    .withMessage('First name must be a string'),
+  body('lastName')
+    .optional()
+    .isString()
+    .withMessage('Last name must be a string'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
+      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
+    }
+    next();
+  },
+];
+
+module.exports = {
+  validateForgotPassword,
+  validateLogin,
+  validateLeaveRequest,
+  validateLeaveId,
+  validateRejectLeave,
+  validateUsernameQuery,
+  validateHistoryQuery,
+  validateUserUpdate,
+};
+const express = require('express');
+const { login,forgotPassword } = require('../controllers/authController');
+const { validateLogin,validateForgotPassword} = require('../middleware/validationMiddleware');
+
+
+const router = express.Router();
+
+router.post('/login', validateLogin, login);
+router.post('/forgot-password', validateForgotPassword, forgotPassword);
+
+module.exports = router;
+
+
