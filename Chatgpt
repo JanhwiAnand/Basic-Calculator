@@ -1,49 +1,6 @@
-import axios from 'axios';
-
-export const RESET_PASSWORD_REQUEST = 'RESET_PASSWORD_REQUEST';
-export const RESET_PASSWORD_SUCCESS = 'RESET_PASSWORD_SUCCESS';
-export const RESET_PASSWORD_FAILURE = 'RESET_PASSWORD_FAILURE';
-
-export const resetPassword = ({ email, newPassword }) => async dispatch => {
-  dispatch({ type: RESET_PASSWORD_REQUEST });
-  try {
-    const response = await axios.post('http://localhost:5000/api/auth/reset-password', {
-      email,
-      newPassword
-    });
-    dispatch({ type: RESET_PASSWORD_SUCCESS, payload: response.data.message });
-  } catch (error) {
-    dispatch({
-      type: RESET_PASSWORD_FAILURE,
-      payload: error.response?.data?.message || 'Reset failed',
-    });
-  }
-};
-reducer:-
-const initialState = {
-  loading: false,
-  message: null,
-  error: null
-};
-
-const resetPasswordReducer = (state = initialState, action) => {
-  switch (action.type) {
-    case 'RESET_PASSWORD_REQUEST':
-      return { ...state, loading: true, message: null, error: null };
-    case 'RESET_PASSWORD_SUCCESS':
-      return { ...state, loading: false, message: action.payload };
-    case 'RESET_PASSWORD_FAILURE':
-      return { ...state, loading: false, error: action.payload };
-    default:
-      return state;
-  }
-};
-
-export default resetPasswordReducer;
-//form:
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { resetPassword } from '../redux/actions/resetPassword';
+import { resetPassword } from '../redux/actions/authActions'
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const ResetPasswordForm = () => {
@@ -58,7 +15,7 @@ const ResetPasswordForm = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    dispatch(resetPassword({ email, newPassword }));
+    dispatch(resetPassword({ email, newPassword}));
   };
 
   useEffect(() => {
