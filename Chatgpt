@@ -1,47 +1,163 @@
-const resetPassword = asyncHandler(async (req, res) => {
-  const { email, newPassword } = req.body;
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Poppins', sans-serif;
+  background: blueviolet;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
 
-  if (!email || !newPassword) {
-    throw new CustomError(
-      constants.errorMessages.MISSING_FIELDS,
-      constants.status.BAD_REQUEST
-    );
-  }
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh; /* Ensures full viewport height */
+  width: 100%;
+  border: 2px solid red;
+  overflow:hidden;
+  margin:0;
+  padding:0;
+}
 
-  try {
-    const response = await axios.post(`${env.SPRING_BOOT_API}/api/auth/reset-password`, {
-      email,
-      newPassword
-    });
 
-    logger.info(`Password reset request processed for ${email}`);
-    res.json({ success: true, message: response.data });
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
-});
+.login-card {
+  background: white;
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  width: 350px;
+  text-align: center;
+}
 
-module.exports = {
-  forgotPassword,
-  resetPassword,
+.login-title {
+  color: #2e3192;
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.login-button {
+  width: 100%;
+  padding: 10px;
+  background-color: #2e3192;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.login-button:hover {
+  background-color: #3aadad;
+}
+
+.error-message {
+  margin-top: 10px;
+  color: red;
+  font-size: 14px;
+}
+
+.forgot-password {
+  margin-top: 15px;
+}
+
+.forgot-password a {
+  color: #2e3192;
+  text-decoration: none;
+  font-weight: bold;
+}
+import { useEffect, useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { login } from '../redux/actions/authActions';
+import { NavLink } from 'react-router-dom';
+import '../css/Login.css'
+const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const dispatch = useDispatch();
+
+  // useEffect(() => {
+  //   document.body.style.margin = '0';
+  //   document.body.style.padding = '0';
+  //   // document.body.style.background = 'linear-gradient(to right, #2e3192, #1bffff)';
+  //   document.body.style.display = 'flex';
+  //   document.body.style.justifyContent = 'center';
+  //   document.body.style.alignItems = 'center';
+  //   document.body.style.height = '100vh';
+  //   document.body.style.fontFamily = '"Poppins", sans-serif';
+  // }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      await dispatch(login(email, password));
+      setLoading(false);
+    } catch (error) {
+      setLoading(false);
+      setError('Invalid username or password');
+    }
+  };
+
+  return (
+    <div className="login-container">
+      <div className="login-card">
+        <h3 className="login-title">Employee Leave Management</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Email</label>
+            <input
+              type="email"
+              className="form-input"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="new-email"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Password</label>
+            <input
+              type="password"
+              className="form-input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              required
+            />
+          </div>
+          <button type="submit" className="login-button" disabled={loading}>
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
+          {error && <div className="error-message">{error}</div>}
+        </form>
+        <div className="forgot-password">
+          <NavLink to="/forgot-password">Forgot Password?</NavLink>
+        </div>
+      </div>
+    </div>
+  );
 };
-🔁 Summary of Improvements
-Feature	Status
-Matches forgotPassword format	✅
-Uses asyncHandler	✅
-Centralized error logging	✅
-Uses env.SPRING_BOOT_API	✅
-Checks required fields	✅
-Sends clean response	✅
 
-Let me know if you need the final list of API endpoints, or Swagger-style documentation for the Node routes.
-
-
-
-
-
-
-
-
-
-    
+export default Login;
