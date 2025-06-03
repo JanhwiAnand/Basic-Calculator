@@ -1,101 +1,47 @@
-const asyncHandler = require('express-async-handler');
-const axios = require('axios');
-const jwt = require('jsonwebtoken');
-const CustomError = require('../utils/customError');
-const constants = require('../utils/constants');
-const env = require('../config/env');
-const logger = require('../utils/logger');
-const { handleAxiosError } = require('../utils/errorHandler');
-const { resetPassword } = require('../../frontend/src/redux/actions/authActions');
+const resetPassword = asyncHandler(async (req, res) => {
+  const { email, newPassword } = req.body;
 
+  if (!email || !newPassword) {
+    throw new CustomError(
+      constants.errorMessages.MISSING_FIELDS,
+      constants.status.BAD_REQUEST
+    );
+  }
 
-const forgotPassword = asyncHandler(async (req, res) => {
-  const { firstname, lastname, email } = req.body;
-  console.log(req.body);
-  if (!firstname || !lastname || !email) {
-    throw new CustomError(
-      constants.errorMessages.MISSING_FIELDS,
-      constants.status.BAD_REQUEST
-    );
-  }
+  try {
+    const response = await axios.post(`${env.SPRING_BOOT_API}/api/auth/reset-password`, {
+      email,
+      newPassword
+    });
 
-  try {
-    const response = await axios.post(`${env.SPRING_BOOT_API}/api/auth/forgot-password`, {
-      firstname,
-      lastname,
-      email
-    });
-
-    logger.info(`Forgot password request processed for ${email}`);
-    res.json({ success: true, message: response.data });
-    console.log(response.data);
-
-
-  } catch (error) {
-    res.status(400).json({ success: false, message: "Invalid user details" });
-    handleAxiosError(error, res);
-  }
+    logger.info(`Password reset request processed for ${email}`);
+    res.json({ success: true, message: response.data });
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
 });
 
-const resetPassword = async (req, res) => {
-  const { email, newPassword } = req.body;
-
-  try {
-    const springRes = await axios.post(
-      'http://localhost:8080/api/auth/reset-password',
-      { email, newPassword }
-    );
-    return res.status(springRes.status).json(springRes.data);
-  } catch (err) {
-    const status = err.response?.status || 500;
-    const message = err.response?.data?.message || 'Password reset failed';
-    return res.status(status).json({ message });
-  }
+module.exports = {
+  forgotPassword,
+  resetPassword,
 };
+🔁 Summary of Improvements
+Feature	Status
+Matches forgotPassword format	✅
+Uses asyncHandler	✅
+Centralized error logging	✅
+Uses env.SPRING_BOOT_API	✅
+Checks required fields	✅
+Sends clean response	✅
 
-const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+Let me know if you need the final list of API endpoints, or Swagger-style documentation for the Node routes.
 
-  if (!email || !password) {
-    throw new CustomError(
-      constants.errorMessages.MISSING_FIELDS,
-      constants.status.BAD_REQUEST
-    );
-  }
 
-  try {
-    // Send login request to Spring Boot API
-    const response = await axios.post(`${env.SPRING_BOOT_API}/api/auth/login`, {
-      email,
-      password,
-    });
 
-    const userRole = response.data.role;
 
-    // Ensure role is either ADMIN or EMPLOYEE
-    if (!['ADMIN', 'EMPLOYEE'].includes(userRole)) {
-      throw new CustomError('Invalid role returned from backend', constants.status.BAD_REQUEST);
-    }
 
-    // Generate JWT with single role
-    const token = jwt.sign(
-      {
-        sub: email,
-        role: userRole, // Fixed: single role instead of roles array
-      },
-      env.JWT_SECRET,
-      { expiresIn: constants.JWT_EXPIRES_IN }
-    );
 
-    logger.info(`User ${email} logged in successfully`);
 
-    res.status(constants.status.OK).json({
-      accessToken: token,
-      user: response.data,
-    });
-  } catch (error) {
-    handleAxiosError(error, res);
-  }
-});
 
-module.exports = { login, forgotPassword,resetPassword };
+
+    
