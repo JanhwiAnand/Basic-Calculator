@@ -1,26 +1,28 @@
-body {
+/* Login.css */
+
+html, body, #root {
+  height: 100%;
   margin: 0;
   padding: 0;
   font-family: 'Poppins', sans-serif;
+  overflow: hidden; /* Prevents page movement/scroll */
+}
+
+body {
   background: blueviolet;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
 }
 
 .login-container {
+  height: 100vh;
+  width: 100vw;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh; /* Ensures full viewport height */
-  width: 100%;
-  border: 2px solid red;
-  overflow:hidden;
-  margin:0;
-  padding:0;
+  background: blueviolet;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
-
 
 .login-card {
   background: white;
@@ -28,7 +30,9 @@ body {
   border-radius: 10px;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
   width: 350px;
+  max-width: 100%;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .login-title {
@@ -39,6 +43,7 @@ body {
 
 .form-group {
   margin-bottom: 15px;
+  text-align: left;
 }
 
 .form-group label {
@@ -87,7 +92,8 @@ import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { login } from '../redux/actions/authActions';
 import { NavLink } from 'react-router-dom';
-import '../css/Login.css'
+import '../css/Login.css';
+
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -95,17 +101,6 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
 
   const dispatch = useDispatch();
-
-  // useEffect(() => {
-  //   document.body.style.margin = '0';
-  //   document.body.style.padding = '0';
-  //   // document.body.style.background = 'linear-gradient(to right, #2e3192, #1bffff)';
-  //   document.body.style.display = 'flex';
-  //   document.body.style.justifyContent = 'center';
-  //   document.body.style.alignItems = 'center';
-  //   document.body.style.height = '100vh';
-  //   document.body.style.fontFamily = '"Poppins", sans-serif';
-  // }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -161,3 +156,4 @@ const Login = () => {
 };
 
 export default Login;
+
