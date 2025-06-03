@@ -1,109 +1,101 @@
-
-const validateResetPassword = [
-  body('email')
-    .notEmpty()
-    .withMessage('Email is required')
-    .isEmail()
-    .withMessage('Invalid email format')
-    .matches(constants.EMAIL_REGEX)
-    .withMessage('Email must end with @infinite.com'),
-  body('newPassword')
-    .notEmpty()
-    .withMessage('New password is required')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*]).{8,}$/)
-    .withMessage(
-      'Password must be at least 8 characters, include uppercase, lowercase, and special character'
-    ),
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      const errorMessages = errors.array().map((error) => error.msg);
-      logger.warn(`Validation failed: ${errorMessages.join(', ')}`);
-      throw new CustomError(errorMessages, constants.status.BAD_REQUEST);
-    }
-    next();
-  },
-];
-
-module.exports = {
-  validateForgotPassword,
-  validateLogin,
-  validateLeaveRequest,
-  validateLeaveId,
-  validateRejectLeave,
-  validateUsernameQuery,
-  validateHistoryQuery,
-  validateUserUpdate,
-  validateResetPassword, // ✅ export it
-};
-✅ Step 2: Add Reset Password Route
-Update your routes/authRoutes.js:
-
-js
-Copy code
-const express = require('express');
-const {
-  login,
-  forgotPassword,
-  resetPassword, // ✅ controller
-} = require('../controllers/authController');
-
-const {
-  validateLogin,
-  validateForgotPassword,
-  validateResetPassword, // ✅ validation
-} = require('../middleware/validationMiddleware');
-
-const router = express.Router();
-
-router.post('/login', validateLogin, login);
-router.post('/forgot-password', validateForgotPassword, forgotPassword);
-router.post('/reset-password', validateResetPassword, resetPassword); // ✅ new
-
-module.exports = router;
-✅ Step 3: Ensure You Have Controller Logic
-In controllers/authController.js (already shared before):
-
-js
-Copy code
+const asyncHandler = require('express-async-handler');
 const axios = require('axios');
+const jwt = require('jsonwebtoken');
+const CustomError = require('../utils/customError');
+const constants = require('../utils/constants');
+const env = require('../config/env');
+const logger = require('../utils/logger');
+const { handleAxiosError } = require('../utils/errorHandler');
+const { resetPassword } = require('../../frontend/src/redux/actions/authActions');
 
-exports.resetPassword = async (req, res) => {
-  const { email, newPassword } = req.body;
 
-  try {
-    const springRes = await axios.post(
-      'http://localhost:8080/api/auth/reset-password',
-      { email, newPassword }
-    );
-    return res.status(springRes.status).json(springRes.data);
-  } catch (err) {
-    const status = err.response?.status || 500;
-    const message = err.response?.data?.message || 'Password reset failed';
-    return res.status(status).json({ message });
-  }
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { firstname, lastname, email } = req.body;
+  console.log(req.body);
+  if (!firstname || !lastname || !email) {
+    throw new CustomError(
+      constants.errorMessages.MISSING_FIELDS,
+      constants.status.BAD_REQUEST
+    );
+  }
+
+  try {
+    const response = await axios.post(`${env.SPRING_BOOT_API}/api/auth/forgot-password`, {
+      firstname,
+      lastname,
+      email
+    });
+
+    logger.info(`Forgot password request processed for ${email}`);
+    res.json({ success: true, message: response.data });
+    console.log(response.data);
+
+
+  } catch (error) {
+    res.status(400).json({ success: false, message: "Invalid user details" });
+    handleAxiosError(error, res);
+  }
+});
+
+const resetPassword = async (req, res) => {
+  const { email, newPassword } = req.body;
+
+  try {
+    const springRes = await axios.post(
+      'http://localhost:8080/api/auth/reset-password',
+      { email, newPassword }
+    );
+    return res.status(springRes.status).json(springRes.data);
+  } catch (err) {
+    const status = err.response?.status || 500;
+    const message = err.response?.data?.message || 'Password reset failed';
+    return res.status(status).json({ message });
+  }
 };
-✅ Final Checklist:
-Task	Status
-Email & password validations	✅
-Error handling & logging	✅
-Proxying to Spring Boot	✅
-Password history logic	✅ (Spring Boot side)
-Prevent reuse of last 6 passwords	✅ (Spring Boot side)
 
-Let me know if you need the updated constants.js, logger.js, or want to write tests for these endpoints.
+const login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
 
+  if (!email || !password) {
+    throw new CustomError(
+      constants.errorMessages.MISSING_FIELDS,
+      constants.status.BAD_REQUEST
+    );
+  }
 
+  try {
+    // Send login request to Spring Boot API
+    const response = await axios.post(`${env.SPRING_BOOT_API}/api/auth/login`, {
+      email,
+      password,
+    });
 
+    const userRole = response.data.role;
 
+    // Ensure role is either ADMIN or EMPLOYEE
+    if (!['ADMIN', 'EMPLOYEE'].includes(userRole)) {
+      throw new CustomError('Invalid role returned from backend', constants.status.BAD_REQUEST);
+    }
 
+    // Generate JWT with single role
+    const token = jwt.sign(
+      {
+        sub: email,
+        role: userRole, // Fixed: single role instead of roles array
+      },
+      env.JWT_SECRET,
+      { expiresIn: constants.JWT_EXPIRES_IN }
+    );
 
+    logger.info(`User ${email} logged in successfully`);
 
+    res.status(constants.status.OK).json({
+      accessToken: token,
+      user: response.data,
+    });
+  } catch (error) {
+    handleAxiosError(error, res);
+  }
+});
 
-
-
-Tools
-
-
-
-ChatGPT can make mistakes. Check important info. See Cookie 
+module.exports = { login, forgotPassword,resetPassword };
