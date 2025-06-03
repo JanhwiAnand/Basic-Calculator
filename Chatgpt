@@ -1,120 +1,99 @@
-1. Create Entity for Password History
-java
-Copy
-Edit
-@Entity
-public class PasswordHistory {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    private String password;
-
-    private LocalDateTime changedAt;
-
-    @ManyToOne
-    private User user;
-}
-2. Repository
-java
-Copy
-Edit
-public interface PasswordHistoryRepository extends JpaRepository<PasswordHistory, Long> {
-    List<PasswordHistory> findTop6ByUserOrderByChangedAtDesc(User user);
-}
-3. DTO for Reset
-java
-Copy
-Edit
-public class ResetPasswordRequest {
-    private String email;
-    private String newPassword;
-}
-4. Service Logic
-java
-Copy
-Edit
-@Override
-public String resetPassword(ResetPasswordRequest request) {
-    User user = userRepository.findByEmail(request.getEmail())
-        .orElseThrow(() -> new RuntimeException("User not found"));
-
-    // Get last 6 passwords
-    List<PasswordHistory> lastPasswords = passwordHistoryRepository
-        .findTop6ByUserOrderByChangedAtDesc(user);
-
-    // Check if new password matches any previous one
-    for (PasswordHistory old : lastPasswords) {
-        if (passwordEncoder.matches(request.getNewPassword(), old.getPassword())) {
-            throw new IllegalArgumentException("New password must not match any of the last 6 passwords.");
-        }
-    }
-
-    // Save new encoded password to user
-    String encodedNew = passwordEncoder.encode(request.getNewPassword());
-    user.setPassword(encodedNew);
-    userRepository.save(user);
-
-    // Add new password to history
-    PasswordHistory ph = new PasswordHistory();
-    ph.setUser(user);
-    ph.setPassword(encodedNew);
-    ph.setChangedAt(LocalDateTime.now());
-    passwordHistoryRepository.save(ph);
-
-    return "Password reset successful";
-}
-5. Controller
-java
-Copy
-Edit
-@PostMapping("/reset-password")
-public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
-    return ResponseEntity.ok(userService.resetPassword(request));
-}
-✅ NODE.JS (Middleware)
-1. Action: resetPassword.js
-js
-Copy
-Edit
-import axios from "axios";
-export const resetPassword = (payload) => async (dispatch) => {
-    dispatch({ type: "RESET_PASSWORD_REQUEST" });
-    try {
-        const res = await axios.post("http://localhost:8080/api/auth/reset-password", payload);
-        dispatch({ type: "RESET_PASSWORD_SUCCESS", payload: res.data });
-    } catch (err) {
-        dispatch({ type: "RESET_PASSWORD_FAILURE", payload: err.response?.data || "Error" });
-    }
-};
-2. Reducer
-js
-Copy
-Edit
+//react part
+// Auth Reducer: Manages authentication state
 const initialState = {
-    loading: false,
-    message: "",
-    error: null,
+  token: sessionStorage.getItem('token') || null,
+  user: JSON.parse(sessionStorage.getItem('user')) || null,
+  error: null,
+  loading: false,
 };
 
-export const resetPasswordReducer = (state = initialState, action) => {
-    switch (action.type) {
-        case "RESET_PASSWORD_REQUEST":
-            return { ...state, loading: true };
-        case "RESET_PASSWORD_SUCCESS":
-            return { ...state, loading: false, message: action.payload };
-        case "RESET_PASSWORD_FAILURE":
-            return { ...state, loading: false, error: action.payload };
-        default:
-            return state;
+const authReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case 'FORGOT_PASSWORD_REQUEST':
+      return { ...state, loading: true, error: null };
+
+    case 'FORGOT_PASSWORD_SUCCESS':
+      return { ...state, loading: false, message: action.payload };
+
+    case 'FORGOT_PASSWORD_FAILURE':
+      return { ...state, loading: false, error: action.payload };
+
+    case 'LOGIN_REQUEST':
+      return { ...state, loading: true, error: null };
+    case 'LOGIN_SUCCESS':
+      sessionStorage.setItem('token', action.payload.token);
+      sessionStorage.setItem('user', JSON.stringify(action.payload.user));
+      return { ...state, token: action.payload.token, user: action.payload.user, loading: false };
+    case 'LOGIN_FAILURE':
+      return { ...state, error: action.payload, loading: false };
+    case 'LOGOUT':
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
+      return { ...state, token: null, user: null };
+    default:
+      return state;
+  }
+};
+
+export default authReducer;// Auth Actions: Handles login and logout
+import axios from 'axios';
+
+export const LOGIN_REQUEST = 'LOGIN_REQUEST';
+export const LOGIN_SUCCESS = 'LOGIN_SUCCESS';
+export const LOGIN_FAILURE = 'LOGIN_FAILURE';
+
+//for forgot password things
+export const FORGOT_PASSWORD_REQUEST='FORGOT_PASSWORD_REQUEST';
+export const FORGOT_PASSWORD_SUCCESS='FORGOT_PASSWORD_SUCCESS';
+export const FORGOT_PASSWORD_FAILURE='FORGOT_PASSWORD_FAILURE';
+
+//for logout page
+export const LOGOUT = 'LOGOUT';
+
+export const forgotPassword = (firstname, lastname, email) => async dispatch => {
+    console.log(firstname,lastname,email)
+  dispatch({ type: FORGOT_PASSWORD_REQUEST });
+  console.log(firstname,lastname,email)
+  try {
+    const response = await axios.post('http://localhost:5000/api/auth/forgot-password', {
+      firstname,
+      lastname,
+      email
+    });
+    // console.log(response)
+    dispatch({ type: FORGOT_PASSWORD_SUCCESS, payload: response.data.message });
+  } catch (error) {
+    dispatch({
+      type: FORGOT_PASSWORD_FAILURE,
+      payload: error.response?.data?.message || 'Request failed',
+    });
+  }
+};
+
+export const login = (email, password) => async dispatch => {
+    dispatch({ type: LOGIN_REQUEST });
+    try {
+        sessionStorage.removeItem('token');
+        const response = await axios.post('http://localhost:5000/api/auth/login', { email, password });
+        sessionStorage.setItem('token', response.data.accessToken);//token is a key whose value is comming in response
+        dispatch({ type: LOGIN_SUCCESS, payload: { token: response.data.accessToken, user: response.data.user } });
+        return response.data;
+    } catch (error) {
+        const message = error.response?.data?.errors?.[0] || 'Login failed';
+        dispatch({ type: LOGIN_FAILURE, payload: message });
+        throw error;
     }
 };
-✅ REACT (Frontend)
-1. Reset Password Form
-jsx
-Copy
-Edit
-import { useState } from "react";
+
+export const logout = () => (dispatch) => {
+    sessionStorage.removeItem('token');
+    dispatch({ type: LOGOUT });
+};
+
+export const loginSuccess = (payload) => ({
+    type: LOGIN_SUCCESS,
+    payload,
+});import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { resetPassword } from "../actions/resetPassword";
 
@@ -139,17 +118,96 @@ const ResetPasswordForm = () => {
         </form>
     );
 };
-🛡 Password Validation (Spring & React)
-Use regex or validation rules to enforce:
 
-Minimum 8 characters
+export default ResetPasswordForm;import { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { forgotPassword } from '../redux/actions/authActions';
+import {
+  getAuthMessage,
+  getAuthError,
+  getAuthLoading
+} from '../redux/selectors';
 
-At least 1 uppercase, 1 lowercase, 1 digit, 1 special character
+const ForgotPassword = () => {
+  const [firstname, setFirstname] = useState('');
+  const [lastname, setLastname] = useState('');
+  const [email, setEmail] = useState('');
 
-✅ Summary
-Part	Responsibility
-Spring Boot	Store password, check last 6 history
-Node.js	Middleware to connect frontend/backend
-React	Form input, Redux action/reducer
+  const dispatch = useDispatch();
+  const loading = useSelector(getAuthLoading);
+  const error = useSelector(getAuthError);
+  const message = useSelector(getAuthMessage);
 
-Let me know if you want me to generate these files for your existing project structure or integrate this with your current Spring Boot en
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log(firstname,lastname,email);
+    dispatch(forgotPassword(firstname, lastname, email));
+    
+  };
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        margin: 0,
+        padding: 0,
+        background: 'linear-gradient(to right, #74ebd5, #ACB6E5)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <div className="card p-4 shadow-lg rounded-4" style={{ width: '400px' }}>
+        <h4 className="text-center text-primary mb-4">Forgot Password</h4>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label className="form-label">First Name</label>
+            <input
+              type="text"
+              className="form-control"
+              value={firstname}
+              onChange={(e) => setFirstname(e.target.value)}
+              required
+            />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Last Name</label>
+            <input
+              type="text"
+              className="form-control"
+              value={lastname}
+              onChange={(e) => setLastname(e.target.value)}
+              required
+            />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Email</label>
+            <input
+              type="email"
+              className="form-control"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" className="btn btn-primary w-100" disabled={loading}>
+            {loading ? 'Submitting...' : 'Submit'}
+          </button>
+          {message && (
+            <div className="alert alert-success mt-3" role="alert">
+              {message}
+            </div>
+          )}
+          {error && (
+            <div className="alert alert-danger mt-3" role="alert">
+              {error}
+            </div>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default ForgotPassword;
