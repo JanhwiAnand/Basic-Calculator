@@ -1,37 +1,105 @@
-// Auth Reducer: Manages authentication state
+import axios from 'axios';
+
+export const RESET_PASSWORD_REQUEST = 'RESET_PASSWORD_REQUEST';
+export const RESET_PASSWORD_SUCCESS = 'RESET_PASSWORD_SUCCESS';
+export const RESET_PASSWORD_FAILURE = 'RESET_PASSWORD_FAILURE';
+
+export const resetPassword = ({ email, newPassword }) => async dispatch => {
+  dispatch({ type: RESET_PASSWORD_REQUEST });
+  try {
+    const response = await axios.post('http://localhost:5000/api/auth/reset-password', {
+      email,
+      newPassword
+    });
+    dispatch({ type: RESET_PASSWORD_SUCCESS, payload: response.data.message });
+  } catch (error) {
+    dispatch({
+      type: RESET_PASSWORD_FAILURE,
+      payload: error.response?.data?.message || 'Reset failed',
+    });
+  }
+};
+reducer:-
 const initialState = {
-  token: sessionStorage.getItem('token') || null,
-  user: JSON.parse(sessionStorage.getItem('user')) || null,
-  error: null,
   loading: false,
+  message: null,
+  error: null
 };
 
-const authReducer = (state = initialState, action) => {
+const resetPasswordReducer = (state = initialState, action) => {
   switch (action.type) {
-    case 'FORGOT_PASSWORD_REQUEST':
-      return { ...state, loading: true, error: null };
-
-    case 'FORGOT_PASSWORD_SUCCESS':
+    case 'RESET_PASSWORD_REQUEST':
+      return { ...state, loading: true, message: null, error: null };
+    case 'RESET_PASSWORD_SUCCESS':
       return { ...state, loading: false, message: action.payload };
-
-    case 'FORGOT_PASSWORD_FAILURE':
+    case 'RESET_PASSWORD_FAILURE':
       return { ...state, loading: false, error: action.payload };
-
-    case 'LOGIN_REQUEST':
-      return { ...state, loading: true, error: null };
-    case 'LOGIN_SUCCESS':
-      sessionStorage.setItem('token', action.payload.token);
-      sessionStorage.setItem('user', JSON.stringify(action.payload.user));
-      return { ...state, token: action.payload.token, user: action.payload.user, loading: false };
-    case 'LOGIN_FAILURE':
-      return { ...state, error: action.payload, loading: false };
-    case 'LOGOUT':
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('user');
-      return { ...state, token: null, user: null };
     default:
       return state;
   }
 };
 
-export default authReducer;
+export default resetPasswordReducer;
+//form:
+import { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { resetPassword } from '../redux/actions/resetPassword';
+import { useLocation, useNavigate } from 'react-router-dom';
+
+const ResetPasswordForm = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  const [email, setEmail] = useState(location.state?.email || '');
+  const [newPassword, setNewPassword] = useState('');
+
+  const { loading, message, error } = useSelector((state) => state.resetPassword);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    dispatch(resetPassword({ email, newPassword }));
+  };
+
+  useEffect(() => {
+    if (message) {
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500); // Redirect after successful reset
+    }
+  }, [message, navigate]);
+
+  return (
+    <div className="container mt-5">
+      <h3 className="text-center mb-4">Reset Password</h3>
+      <form onSubmit={handleSubmit} className="w-50 mx-auto">
+        <div className="mb-3">
+          <label>Email</label>
+          <input
+            type="email"
+            className="form-control"
+            value={email}
+            readOnly
+          />
+        </div>
+        <div className="mb-3">
+          <label>New Password</label>
+          <input
+            type="password"
+            className="form-control"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+          />
+        </div>
+        <button className="btn btn-primary w-100" disabled={loading}>
+          {loading ? 'Resetting...' : 'Reset Password'}
+        </button>
+        {message && <div className="alert alert-success mt-3">{message}</div>}
+        {error && <div className="alert alert-danger mt-3">{error}</div>}
+      </form>
+    </div>
+  );
+};
+
+export default ResetPasswordForm;
