@@ -85,14 +85,12 @@ const AddEmployee = () => {
   };
 
   const isFormValid = () => {
-    let valid = true;
     for (const [field, value] of Object.entries(employee)) {
       if (!value || errors[field]) {
-        valid = false;
-        break;
+        return false;
       }
     }
-    return valid;
+    return true;
   };
 
   const handleSubmit = async (e) => {
