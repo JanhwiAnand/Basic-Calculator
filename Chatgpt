@@ -1,129 +1,105 @@
-/* AddEmployeeCustom.css */
+import { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchPendingLeaves, approveLeave, declineLeave } from '../redux/actions/leaveActions';
+import { getToken, getPendingLeaves, getLeaveLoading } from '../redux/selectors';
+import '../css/Approval.css'; // ✅ Import the updated styles
 
-.add-employee-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 40px 10px;
-  background-color: #f5f5f5;
-  min-height: 100vh;
-}
+const Approval = () => {
+  const [declineReason, setDeclineReason] = useState('');
+  const [selectedLeaveId, setSelectedLeaveId] = useState(null);
 
-.add-employee-card {
-  background: white;
-  padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-  max-width: 800px;
-  width: 100%;
-}
+  const dispatch = useDispatch();
+  const token = useSelector(getToken);
+  const pendingLeaves = useSelector(getPendingLeaves);
+  const loading = useSelector(getLeaveLoading);
 
-.add-employee-title {
-  text-align: center;
-  font-size: 28px;
-  margin-bottom: 30px;
-  font-weight: 600;
-  color: #333;
-}
+  useEffect(() => {
+    dispatch(fetchPendingLeaves(token));
+  }, [dispatch, token]);
 
-.add-employee-form {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px 30px;
-}
+  const handleApprove = (leaveId) => {
+    dispatch(approveLeave(leaveId, token));
+  };
 
-.add-employee-field {
-  display: flex;
-  flex-direction: column;
-}
+  const handleDecline = (leaveId) => {
+    if (!declineReason) {
+      alert('Please provide a reason for declining');
+      return;
+    }
+    dispatch(declineLeave(leaveId, declineReason, token));
+    setDeclineReason('');
+    setSelectedLeaveId(null);
+  };
 
-.add-employee-field label {
-  font-weight: 500;
-  margin-bottom: 8px;
-  color: #333;
-}
+  return (
+    <div className="approval-container">
+      <h2 className="approval-heading">Leave Approval</h2>
+      <div className="approval-card">
+        <h5 className="approval-title">Pending Leave Requests</h5>
+        <div className="table-container">
+          <table className="approval-table">
+            <thead>
+              <tr>
+                <th>Firstname</th>
+                <th>Lastname</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Category</th>
+                <th>Reason</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingLeaves.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="no-leaves">No pending leave requests</td>
+                </tr>
+              ) : (
+                pendingLeaves.map(leave => (
+                  <tr key={leave.id}>
+                    <td>{leave.firstname}</td>
+                    <td>{leave.lastname}</td>
+                    <td>{leave.startDate}</td>
+                    <td>{leave.endDate}</td>
+                    <td>{leave.category}</td>
+                    <td>{leave.reason}</td>
+                    <td>
+                      <button className="btn btn-success btn-sm me-2" onClick={() => handleApprove(leave.id)} disabled={loading}>Approve</button>
+                      <button className="btn btn-danger btn-sm" onClick={() => setSelectedLeaveId(leave.id)} data-bs-toggle="modal" data-bs-target="#declineModal" disabled={loading}>Decline</button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-.add-employee-field input,
-.add-employee-field select {
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #ccc;
-  font-size: 14px;
-  transition: border 0.3s;
-}
+      {/* Modal for Decline Reason */}
+      {selectedLeaveId !== null && (
+        <div className="modal fade show approval-modal" id="declineModal" tabIndex="-1" aria-labelledby="declineModalLabel" aria-hidden="true" style={{ display: 'block' }}>
+          <div className="modal-dialog">
+            <div className="modal-content approval-modal-content">
+              <div className="modal-header approval-modal-header">
+                <h5 className="modal-title">Decline Leave</h5>
+                <button type="button" className="btn-close" onClick={() => setSelectedLeaveId(null)}></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label">Reason for Decline</label>
+                  <textarea className="form-control approval-textarea" value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} required />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setSelectedLeaveId(null)}>Close</button>
+                <button type="button" className="btn btn-danger" onClick={() => handleDecline(selectedLeaveId)}>Decline</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
-.add-employee-field input:focus,
-.add-employee-field select:focus {
-  border-color: #007bff;
-  outline: none;
-}
-
-.add-employee-password-field {
-  position: relative;
-}
-
-.add-employee-password-field input {
-  width: 100%;
-  padding-right: 36px;
-}
-
-.add-employee-eye {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  cursor: pointer;
-  color: #555;
-}
-
-.add-employee-error {
-  color: red;
-  font-size: 13px;
-  margin-top: 5px;
-}
-
-.add-employee-strength {
-  font-size: 13px;
-  margin-top: 5px;
-  font-weight: 500;
-}
-
-.add-employee-strength.weak {
-  color: red;
-}
-
-.add-employee-strength.moderate {
-  color: #ffc107;
-}
-
-.add-employee-strength.strong {
-  color: green;
-}
-
-.add-employee-submit {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: center;
-  margin-top: 30px;
-}
-
-.add-employee-submit button {
-  background-color: #007bff;
-  color: white;
-  padding: 12px 30px;
-  border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 500;
-  transition: background-color 0.3s ease;
-  min-width: 160px;
-}
-
-.add-employee-submit button:hover {
-  background-color: #0056b3;
-}
-
-.add-employee-submit button:disabled {
-  background-color: #b5c5dd;
-  cursor: not-allowed;
-}
+export default Approval;
