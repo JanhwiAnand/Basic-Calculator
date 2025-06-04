@@ -1,97 +1,59 @@
-.add-employee-container {
-  max-width: 800px;
-  margin: 40px auto;
-  padding: 30px;
-  border-radius: 15px;
-  background-color: #ffffff;
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
-}
-
-.add-employee-title {
-  text-align: center;
-  margin-bottom: 25px;
-  font-size: 28px;
-  font-weight: bold;
-  color: #333;
-}
-
-.add-employee-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  justify-content: space-between;
-}
-
-.add-employee-field {
-  width: 48%;
-  display: flex;
-  flex-direction: column;
-}
-
-.add-employee-field-full {
-  width: 100%;
-}
-
-.add-employee-label {
-  font-weight: 600;
-  margin-bottom: 5px;
-  color: #444;
-}
-
-.add-employee-input,
-.add-employee-select {
+.add-employee-form input,
+.add-employee-form select {
   padding: 10px;
-  border-radius: 8px;
+  font-size: 14px;
+  border-radius: 6px;
   border: 1px solid #ccc;
-  font-size: 15px;
-}
-
-.add-employee-input:focus,
-.add-employee-select:focus {
-  outline: none;
-  border-color: #007bff;
-}
-
-.add-employee-error {
-  color: red;
-  font-size: 13px;
-  margin-top: 5px;
-}
-
-.add-employee-button-container {
   width: 100%;
-  text-align: center;
-  margin-top: 30px;
+  box-sizing: border-box;
 }
 
-.add-employee-button {
+.add-employee-password-field {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.add-employee-eye {
+  position: absolute;
+  right: 10px;
+  cursor: pointer;
+}
+
+.add-employee-strength {
+  margin-top: 4px;
+  font-weight: bold;
+}
+
+.add-employee-strength.weak {
+  color: red;
+}
+.add-employee-strength.moderate {
+  color: orange;
+}
+.add-employee-strength.strong {
+  color: green;
+}
+
+.add-employee-submit {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.add-employee-submit button {
+  padding: 10px 30px;
+  font-size: 16px;
   background-color: #007bff;
   color: white;
-  padding: 12px 30px;
   border: none;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.add-employee-button:hover {
-  background-color: #0056b3;
-}
-
-.add-employee-password-toggle {
-  position: absolute;
-  right: 15px;
-  top: 38px;
+  border-radius: 8px;
   cursor: pointer;
 }
 
-/* 📱 Responsive: stack fields on small screens */
-@media screen and (max-width: 768px) {
-  .add-employee-field {
-    width: 100%;
-  }
+.add-employee-submit button:disabled {
+  background-color: #aaa;
+  cursor: not-allowed;
 }
 import React, { useState } from 'react';
 import './AddEmployeeCustom.css';
@@ -130,8 +92,12 @@ const AddEmployee = () => {
     const { name, value } = e.target;
     setEmployee((prev) => ({ ...prev, [name]: value }));
     validateField(name, value);
-    if (name === 'password') validateField('confirmPassword', employee.confirmPassword);
-    if (name === 'confirmPassword') validateField('confirmPassword', value);
+    if (name === 'password') {
+      validateField('confirmPassword', employee.confirmPassword);
+    }
+    if (name === 'confirmPassword') {
+      validateField('confirmPassword', value);
+    }
   };
 
   const validateField = (name, value) => {
@@ -141,7 +107,7 @@ const AddEmployee = () => {
         if (!value.endsWith('@infinite.com') || value.length > 100) error = 'Email must end with @infinite.com and be less than 100 chars.';
         break;
       case 'phnno':
-        if (!/^\d{1,12}$/.test(value)) error = 'Mobile number must be up to 12 digits only.';
+        if (!/^[0-9]{1,12}$/.test(value)) error = 'Mobile number must be up to 12 digits only.';
         break;
       case 'firstname':
       case 'lastname':
@@ -161,7 +127,7 @@ const AddEmployee = () => {
         break;
       }
       case 'confirmPassword':
-        if (value !== employee.password) error = 'Confirm password must match the password.';
+        if (value && value !== employee.password) error = 'Confirm password must match the password.';
         break;
       default:
         if (!value.trim()) error = 'This field is required.';
