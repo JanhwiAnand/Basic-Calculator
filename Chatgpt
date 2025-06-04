@@ -1,108 +1,388 @@
-/* Container centering and responsiveness */
-.container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 40px 20px;
-  min-height: 100vh;
-  background-color: #f6f9fc;
-}
+import React, { useState } from 'react';
+import '../css/AddEmployee.css';
+import { useDispatch, useSelector } from 'react-redux';
+import { getToken } from '../redux/selectors';
+import { addUser } from '../redux/actions/userActions';
+// import { Eye, EyeOff } from 'lucide-react';
 
-/* Card styling */
-.card {
-  width: 100%;
-  max-width: 900px;
-  background: #ffffff;
-  border-radius: 20px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-  padding: 30px;
-}
+const departments = ['HR', 'Development', 'Marketing', 'Finance', 'Production', 'Devops'];
+const states = ['Karnataka', 'Maharashtra', 'Delhi', 'Tamil Nadu'];
 
-h3.text-center {
-  font-weight: 600;
-  color: #2c3e50;
-  font-size: 1.8rem;
-  margin-bottom: 30px;
-}
+const AddEmployee = () => {
+  const dispatch = useDispatch();
+  const token = useSelector(getToken);
 
-/* Input and select fields */
-.form-control,
-.form-select {
-  border-radius: 12px;
-  padding: 10px 15px;
-  font-size: 0.95rem;
-  border: 1px solid #ced4da;
-  transition: border-color 0.3s ease-in-out;
-}
+  const [employee, setEmployee] = useState({
+    email: '',
+    firstname: '',
+    lastname: '',
+    department: '',
+    phnno: '',
+    country: '',
+    state: '',
+    city: '',
+    date_of_joining: '',
+    password: '',
+    confirmPassword: '',
+    role: 'EMPLOYEE',
+  });
 
-.form-control:focus,
-.form-select:focus {
-  border-color: #007bff;
-  outline: none;
-  box-shadow: none;
-}
+  const [errors, setErrors] = useState({});
+  const [addUserLoading, setAddUserLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState('');
 
-/* Label styling */
-.form-label {
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 5px;
-}
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setEmployee((prev) => ({ ...prev, [name]: value }));
 
-/* Error message */
-.text-danger {
-  font-size: 0.85rem;
-  margin-top: 4px;
-  font-weight: 500;
-}
+    validateField(name, value);
 
-/* Eye icon positioning */
-.position-relative input[type='password'],
-.position-relative input[type='text'] {
-  padding-right: 40px;
-}
+    if (name === 'password') {
+      // also validate confirm password when password changes
+      validateField('confirmPassword', employee.confirmPassword);
+    }
+    if (name === 'confirmPassword') {
+      validateField('confirmPassword', value);
+    }
+  };
 
-.position-relative span {
-  position: absolute;
-  right: 20px;
-  top: 37px;
-  z-index: 10;
-  color: #666;
-  cursor: pointer;
-}
+  const validateField = (name, value) => {
+    let error = '';
 
-/* Submit button */
-button.btn {
-  padding: 10px 30px;
-  border-radius: 30px;
-  font-size: 1rem;
-  font-weight: 600;
-  background-color: #007bff;
-  border: none;
-  transition: background-color 0.3s ease-in-out;
-}
+    switch (name) {
+      case 'email':
+        if (!value.endsWith('@infinite.com') || value.length > 100) {
+          error = 'Email must end with @infinite.com and be less than 100 chars.';
+        }
+        break;
+      case 'phnno':
+        if (!/^\d{1,12}$/.test(value)) {
+          error = 'Mobile number must be up to 12 digits only.';
+        }
+        break;
+      case 'firstname':
+      case 'lastname':
+        if (!/^[a-zA-Z]+$/.test(value)) {
+          error = 'Name must contain only letters.';
+        }
+        break;
+      case 'password': {
+        const hasLower = /[a-z]/.test(value);
+        const hasUpper = /[A-Z]/.test(value);
+        const hasDigit = /\d/.test(value);
+        const hasSpecial = /[@$!%*?&]/.test(value);
+        const length = value.length;
 
-button.btn:hover {
-  background-color: #0056b3;
-}
+        const strengthCount = [hasLower, hasUpper, hasDigit, hasSpecial].filter(Boolean).length;
 
-/* Responsive field layout */
-.row.g-3 > div {
-  padding-right: 10px;
-  padding-left: 10px;
-}
+        if (strengthCount === 4 && length >= 8) {
+          setPasswordStrength('Strong');
+        } else if (strengthCount >= 2 && length >= 6) {
+          setPasswordStrength('Moderate');
+        } else {
+          setPasswordStrength('Weak');
+        }
 
-@media (max-width: 768px) {
-  .row.g-3 > div {
-    flex: 0 0 100%;
-    max-width: 100%;
-  }
+        if (!(hasLower && hasUpper && hasDigit && hasSpecial && length >= 8)) {
+          error = 'Password must be 8+ chars, include uppercase, lowercase, number, special char.';
+        }
+        break;
+      }
+      case 'confirmPassword':
+        if (value !== employee.password) {
+          error = 'Confirm password must match the password.';
+        }
+        break;
+      default:
+        if (!value.trim()) {
+          error = 'This field is required.';
+        }
+    }
 
-  .card {
-    padding: 20px;
-  }
+    setErrors((prev) => ({ ...prev, [name]: error }));
+  };
 
-  .position-relative span {
-    top: 35px;
-  }
-}
+  const isFormValid = () => {
+    let valid = true;
+    const newErrors = {};
+
+    Object.entries(employee).forEach(([field, value]) => {
+      let error = '';
+
+      switch (field) {
+        case 'email':
+          if (!value.endsWith('@infinite.com') || value.length > 100) {
+            error = 'Email must end with @infinite.com and be less than 100 chars.';
+          }
+          break;
+        case 'phnno':
+          if (!/^\d{1,12}$/.test(value)) {
+            error = 'Mobile number must be up to 12 digits only.';
+          }
+          break;
+        case 'firstname':
+        case 'lastname':
+          if (!/^[a-zA-Z]+$/.test(value)) {
+            error = 'Name must contain only letters.';
+          }
+          break;
+        case 'password': {
+          const hasLower = /[a-z]/.test(value);
+          const hasUpper = /[A-Z]/.test(value);
+          const hasDigit = /\d/.test(value);
+          const hasSpecial = /[@$!%*?&]/.test(value);
+          const length = value.length;
+          if (!(hasLower && hasUpper && hasDigit && hasSpecial && length >= 8)) {
+            error = 'Password must be 8+ chars, include uppercase, lowercase, number, special char.';
+          }
+          break;
+        }
+        case 'confirmPassword':
+          if (value !== employee.password) {
+            error = 'Confirm password must match the password.';
+          }
+          break;
+        default:
+          if (!value.trim()) {
+            error = 'This field is required.';
+          }
+      }
+
+      if (error) {
+        valid = false;
+        newErrors[field] = error;
+      }
+    });
+
+    setErrors(newErrors);
+    return valid;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!isFormValid()) {
+      return;
+    }
+
+    setAddUserLoading(true);
+    try {
+      const { confirmPassword, ...userWithoutConfirm } = employee; // remove confirmPassword before sending
+      await dispatch(addUser(userWithoutConfirm, token));
+      alert('User added successfully!');
+      setEmployee({
+        email: '',
+        firstname: '',
+        lastname: '',
+        department: '',
+        phnno: '',
+        country: '',
+        state: '',
+        city: '',
+        date_of_joining: '',
+        password: '',
+        confirmPassword: '',
+        role: 'EMPLOYEE',
+      });
+      setErrors({});
+      setPasswordStrength('');
+    } catch (error) {
+      alert(error.message || 'Failed to add user');
+    } finally {
+      setAddUserLoading(false);
+    }
+  };
+
+  const today = new Date().toISOString().split('T')[0];
+
+  return (
+    <div className="container mt-5 mb-5">
+      <div className="card shadow-lg p-4 rounded-4">
+        <h3 className="text-center mb-4">Add Employee</h3>
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label className="form-label">Email ID</label>
+              <input
+                type="email"
+                className="form-control"
+                name="email"
+                value={employee.email}
+                onChange={handleChange}
+                required
+              />
+              {errors.email && <div className="text-danger">{errors.email}</div>}
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">Mobile No</label>
+              <input
+                type="text"
+                className="form-control"
+                name="phnno"
+                value={employee.phnno}
+                onChange={handleChange}
+                required
+              />
+              {errors.phnno && <div className="text-danger">{errors.phnno}</div>}
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">First Name</label>
+              <input
+                type="text"
+                className="form-control"
+                name="firstname"
+                value={employee.firstname}
+                onChange={handleChange}
+                required
+              />
+              {errors.firstname && <div className="text-danger">{errors.firstname}</div>}
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">Last Name</label>
+              <input
+                type="text"
+                className="form-control"
+                name="lastname"
+                value={employee.lastname}
+                onChange={handleChange}
+                required
+              />
+              {errors.lastname && <div className="text-danger">{errors.lastname}</div>}
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">Department</label>
+              <select
+                className="form-select"
+                name="department"
+                value={employee.department}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Select Department</option>
+                {departments.map((dept, idx) => (
+                  <option key={idx} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
+              {errors.department && <div className="text-danger">{errors.department}</div>}
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">Country</label>
+              <input
+                type="text"
+                className="form-control"
+                name="country"
+                value={employee.country}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">State</label>
+              <select
+                className="form-select"
+                name="state"
+                value={employee.state}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Select State</option>
+                {states.map((state, idx) => (
+                  <option key={idx} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">City</label>
+              <input
+                type="text"
+                className="form-control"
+                name="city"
+                value={employee.city}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">Date of Joining</label>
+              <input
+                type="date"
+                className="form-control"
+                name="date_of_joining"
+                value={employee.date_of_joining}
+                min={today}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="col-md-6 position-relative">
+              <label className="form-label">Password</label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="form-control"
+                name="password"
+                value={employee.password}
+                onChange={handleChange}
+                required
+              />
+              <span
+                onClick={() => setShowPassword(!showPassword)}
+                style={{ position: 'absolute', right: '15px', top: '38px', cursor: 'pointer' }}
+              >
+                {/* {showPassword ? <EyeOff size={18} /> : <Eye size={18} />} */}
+              </span>
+              {employee.password && (
+                <div
+                  style={{
+                    color:
+                      passwordStrength === 'Strong'
+                        ? 'green'
+                        : passwordStrength === 'Moderate'
+                        ? 'orange'
+                        : 'red',
+                    marginTop: '5px',
+                    fontWeight: '600',
+                  }}
+                >
+                  Strength: {passwordStrength}
+                </div>
+              )}
+              {errors.password && <div className="text-danger">{errors.password}</div>}
+            </div>
+
+            <div className="col-md-6 position-relative">
+              <label className="form-label">Confirm Password</label>
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                className="form-control"
+                name="confirmPassword"
+                value={employee.confirmPassword}
+                onChange={handleChange}
+                required
+              />
+              <span
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={{ position: 'absolute', right: '15px', top: '38px', cursor: 'pointer' }}
+              >
+                {/* {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />} */}
+              </span>
+              {errors.confirmPassword && <div className="text-danger">{errors.confirmPassword}</div>}
+            </div>
+          </div>
+          <div className="d-flex justify-content-center mt-4">
+            <button type="submit" className="btn btn-primary" disabled={addUserLoading}>
+              {addUserLoading ? 'Adding...' : 'Add User'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default AddEmployee;
