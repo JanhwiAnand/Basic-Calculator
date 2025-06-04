@@ -1,105 +1,185 @@
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import './AddEmployeeCustom.css';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchPendingLeaves, approveLeave, declineLeave } from '../redux/actions/leaveActions';
-import { getToken, getPendingLeaves, getLeaveLoading } from '../redux/selectors';
-import '../css/Approval.css'; // ✅ Import the updated styles
+import { getToken } from '../redux/selectors';
+import { addUser } from '../redux/actions/userActions';
+import { Eye, EyeOff } from 'lucide-react';
 
-const Approval = () => {
-  const [declineReason, setDeclineReason] = useState('');
-  const [selectedLeaveId, setSelectedLeaveId] = useState(null);
+const departments = ['HR', 'Development', 'Marketing', 'Finance', 'Production', 'Devops'];
+const states = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
+  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
+  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
+  'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Jammu and Kashmir'
+];
 
+const AddEmployee = () => {
   const dispatch = useDispatch();
   const token = useSelector(getToken);
-  const pendingLeaves = useSelector(getPendingLeaves);
-  const loading = useSelector(getLeaveLoading);
 
-  useEffect(() => {
-    dispatch(fetchPendingLeaves(token));
-  }, [dispatch, token]);
+  const [employee, setEmployee] = useState({
+    email: '', firstname: '', lastname: '', department: '', phnno: '',
+    country: '', state: '', city: '', date_of_joining: '',
+    password: '', confirmPassword: '', role: 'EMPLOYEE'
+  });
 
-  const handleApprove = (leaveId) => {
-    dispatch(approveLeave(leaveId, token));
+  const [errors, setErrors] = useState({});
+  const [addUserLoading, setAddUserLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState('');
+
+  const today = new Date().toISOString().split('T')[0];
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setEmployee((prev) => ({ ...prev, [name]: value }));
+    validateField(name, value);
+    if (name === 'password') {
+      validateField('confirmPassword', employee.confirmPassword);
+    }
+    if (name === 'confirmPassword') {
+      validateField('confirmPassword', value);
+    }
   };
 
-  const handleDecline = (leaveId) => {
-    if (!declineReason) {
-      alert('Please provide a reason for declining');
+  const validateField = (name, value) => {
+    let error = '';
+    switch (name) {
+      case 'email':
+        if (!value.endsWith('@infinite.com') || value.length > 100) error = 'Email must end with @infinite.com and be less than 100 chars.';
+        break;
+      case 'phnno':
+        if (!/^[0-9]{1,12}$/.test(value)) error = 'Mobile number must be up to 12 digits only.';
+        break;
+      case 'firstname':
+      case 'lastname':
+        if (!/^[a-zA-Z]+$/.test(value)) error = 'Name must contain only letters.';
+        break;
+      case 'password': {
+        const hasLower = /[a-z]/.test(value);
+        const hasUpper = /[A-Z]/.test(value);
+        const hasDigit = /\d/.test(value);
+        const hasSpecial = /[@$!%*?&]/.test(value);
+        const length = value.length;
+        const strengthCount = [hasLower, hasUpper, hasDigit, hasSpecial].filter(Boolean).length;
+        setPasswordStrength(strengthCount === 4 && length >= 8 ? 'Strong' : strengthCount >= 2 && length >= 6 ? 'Moderate' : 'Weak');
+        if (!(hasLower && hasUpper && hasDigit && hasSpecial && length >= 8)) {
+          error = 'Password must be 8+ chars, include uppercase, lowercase, number, special char.';
+        }
+        break;
+      }
+      case 'confirmPassword':
+        if (value && value !== employee.password) error = 'Confirm password must match the password.';
+        break;
+      case 'date_of_joining':
+        if (new Date(value) > new Date()) error = 'Date of joining cannot be in the future.';
+        break;
+      default:
+        if (!value.trim()) error = 'This field is required.';
+    }
+    setErrors((prev) => ({ ...prev, [name]: error }));
+  };
+
+  const isFormValid = () => {
+    let valid = true;
+    const newErrors = {};
+    Object.entries(employee).forEach(([field, value]) => {
+      validateField(field, value);
+      if (!value || errors[field]) valid = false;
+    });
+    return valid;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!isFormValid()) {
+      alert('Please fill all fields correctly.');
       return;
     }
-    dispatch(declineLeave(leaveId, declineReason, token));
-    setDeclineReason('');
-    setSelectedLeaveId(null);
+    setAddUserLoading(true);
+    try {
+      const { confirmPassword, ...userWithoutConfirm } = employee;
+      await dispatch(addUser(userWithoutConfirm, token));
+      alert('User added successfully!');
+      setEmployee({ email: '', firstname: '', lastname: '', department: '', phnno: '', country: '', state: '', city: '', date_of_joining: '', password: '', confirmPassword: '', role: 'EMPLOYEE' });
+      setErrors({});
+      setPasswordStrength('');
+    } catch (error) {
+      alert(error.message || 'Failed to add user');
+    } finally {
+      setAddUserLoading(false);
+    }
   };
 
   return (
-    <div className="approval-container">
-      <h2 className="approval-heading">Leave Approval</h2>
-      <div className="approval-card">
-        <h5 className="approval-title">Pending Leave Requests</h5>
-        <div className="table-container">
-          <table className="approval-table">
-            <thead>
-              <tr>
-                <th>Firstname</th>
-                <th>Lastname</th>
-                <th>Start Date</th>
-                <th>End Date</th>
-                <th>Category</th>
-                <th>Reason</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingLeaves.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="no-leaves">No pending leave requests</td>
-                </tr>
-              ) : (
-                pendingLeaves.map(leave => (
-                  <tr key={leave.id}>
-                    <td>{leave.firstname}</td>
-                    <td>{leave.lastname}</td>
-                    <td>{leave.startDate}</td>
-                    <td>{leave.endDate}</td>
-                    <td>{leave.category}</td>
-                    <td>{leave.reason}</td>
-                    <td>
-                      <button className="btn btn-success btn-sm me-2" onClick={() => handleApprove(leave.id)} disabled={loading}>Approve</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => setSelectedLeaveId(leave.id)} data-bs-toggle="modal" data-bs-target="#declineModal" disabled={loading}>Decline</button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Modal for Decline Reason */}
-      {selectedLeaveId !== null && (
-        <div className="modal fade show approval-modal" id="declineModal" tabIndex="-1" aria-labelledby="declineModalLabel" aria-hidden="true" style={{ display: 'block' }}>
-          <div className="modal-dialog">
-            <div className="modal-content approval-modal-content">
-              <div className="modal-header approval-modal-header">
-                <h5 className="modal-title">Decline Leave</h5>
-                <button type="button" className="btn-close" onClick={() => setSelectedLeaveId(null)}></button>
-              </div>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <label className="form-label">Reason for Decline</label>
-                  <textarea className="form-control approval-textarea" value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} required />
+    <div className="add-employee-wrapper">
+      <div className="add-employee-card">
+        <h3 className="add-employee-title">Add Employee</h3>
+        <form onSubmit={handleSubmit} className="add-employee-form">
+          {Object.entries({
+            email: 'Email',
+            phnno: 'Mobile No',
+            firstname: 'First Name',
+            lastname: 'Last Name',
+            department: 'Department',
+            country: 'Country',
+            state: 'State',
+            city: 'City',
+            date_of_joining: 'Date of Joining',
+            password: 'Password',
+            confirmPassword: 'Confirm Password',
+          }).map(([name, label]) => (
+            <div className="add-employee-field" key={name}>
+              <label>{label}</label>
+              {name === 'department' || name === 'state' ? (
+                <select name={name} value={employee[name]} onChange={handleChange}>
+                  <option value="">Select {label}</option>
+                  {(name === 'department' ? departments : states).map((val) => (
+                    <option key={val} value={val}>{val}</option>
+                  ))}
+                </select>
+              ) : name === 'password' || name === 'confirmPassword' ? (
+                <div className="add-employee-password-field">
+                  <input
+                    type={name === 'password' ? (showPassword ? 'text' : 'password') : (showConfirmPassword ? 'text' : 'password')}
+                    name={name}
+                    value={employee[name]}
+                    onChange={handleChange}
+                  />
+                  <span
+                    onClick={() => name === 'password' ? setShowPassword(!showPassword) : setShowConfirmPassword(!showConfirmPassword)}
+                    className="add-employee-eye"
+                  >
+                    {name === 'password' ? (showPassword ? <EyeOff size={16} /> : <Eye size={16} />) : (showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />)}
+                  </span>
                 </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setSelectedLeaveId(null)}>Close</button>
-                <button type="button" className="btn btn-danger" onClick={() => handleDecline(selectedLeaveId)}>Decline</button>
-              </div>
+              ) : (
+                <input
+                  type={name === 'date_of_joining' ? 'date' : 'text'}
+                  name={name}
+                  max={name === 'date_of_joining' ? today : undefined}
+                  value={employee[name]}
+                  onChange={handleChange}
+                />
+              )}
+              {errors[name] && <div className="add-employee-error">{errors[name]}</div>}
+              {name === 'password' && passwordStrength && (
+                <div className={`add-employee-strength ${passwordStrength.toLowerCase()}`}>Strength: {passwordStrength}</div>
+              )}
             </div>
+          ))}
+          <div className="add-employee-submit">
+            <button type="submit" disabled={addUserLoading || !isFormValid()}>
+              {addUserLoading ? 'Adding...' : 'Add User'}
+            </button>
           </div>
-        </div>
-      )}
+        </form>
+      </div>
     </div>
   );
 };
 
-export default Approval;
+export default AddEmployee;
