@@ -299,3 +299,28 @@ export const getAuthMessage=state=>state.auth.message;
 export const getResetPasswordLoading=(state)=>state.auth.loading;
 export const getResetPasswordMessage=(state)=>state.auth.message;
 export const getResetPasswordError=(state)=>state.auth.error;
+
+// Profile Component: Displays user details
+import { useSelector } from 'react-redux';
+import { getUser } from '../redux/selectors';
+
+const Profile = () => {
+  const user = useSelector(getUser);
+
+  return (
+    <div>
+      <h2 className="text-center mb-4">Profile</h2>
+      <div className="card p-4">
+        <h5>User Information</h5>
+        <div className="mb-3">
+          <strong>Email:</strong> {user.email}
+        </div>
+        <div className="mb-3">
+          <strong>Role:</strong> {user.role}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Profile;
