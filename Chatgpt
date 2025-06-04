@@ -1,68 +1,187 @@
-//node:-
-import axios from 'axios';
+import React, { useState } from 'react';
+import '../css/AddEmployee.css';
+import { useDispatch, useSelector } from 'react-redux';
+import { getToken } from '../redux/selectors';
+import { addUser } from '../redux/actions/userActions';
+import { Eye, EyeOff } from 'lucide-react';
 
-export const deleteTask = async (taskId, token, userId) => {
-  const authToken = token || localStorage.getItem('jwtToken');
-  const user = userId || localStorage.getItem('userId');
+const departments = ['HR', 'Development', 'Marketing', 'Finance', 'Production', 'Devops'];
+const states = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
+  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
+  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
+  'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Jammu and Kashmir'
+];
 
-  if (!authToken || !user) {
-    console.error("Token or User ID is missing, cannot proceed.");
-    return;
-  }
+const AddEmployee = () => {
+  const dispatch = useDispatch();
+  const token = useSelector(getToken);
 
-  try {
-    const response = await axios.delete(`http://localhost:3001/api/tasks/${taskId}`, {
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-        "User-Id": user,
-      },
-    });
+  const [employee, setEmployee] = useState({
+    email: '', firstname: '', lastname: '', department: '', phnno: '',
+    country: '', state: '', city: '', date_of_joining: '',
+    password: '', confirmPassword: '', role: 'EMPLOYEE'
+  });
 
-    console.log("React DELETE Response:", response.data);
-    return response.data;
-  } catch (error) {
-    console.error("React DELETE Error:", error.response?.data || error.message);
-  }
+  const [errors, setErrors] = useState({});
+  const [addUserLoading, setAddUserLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState('');
+
+  const today = new Date().toISOString().split('T')[0];
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setEmployee((prev) => ({ ...prev, [name]: value }));
+    validateField(name, value);
+    if (name === 'password') {
+      validateField('confirmPassword', employee.confirmPassword);
+    }
+    if (name === 'confirmPassword') {
+      validateField('confirmPassword', value);
+    }
+  };
+
+  const validateField = (name, value) => {
+    let error = '';
+    switch (name) {
+      case 'email':
+        if (!value.endsWith('@infinite.com') || value.length > 100) error = 'Email must end with @infinite.com and be less than 100 chars.';
+        break;
+      case 'phnno':
+        if (!/^[0-9]{1,12}$/.test(value)) error = 'Mobile number must be up to 12 digits only.';
+        break;
+      case 'firstname':
+      case 'lastname':
+        if (!/^[a-zA-Z]+$/.test(value)) error = 'Name must contain only letters.';
+        break;
+      case 'password': {
+        const hasLower = /[a-z]/.test(value);
+        const hasUpper = /[A-Z]/.test(value);
+        const hasDigit = /\d/.test(value);
+        const hasSpecial = /[@$!%*?&]/.test(value);
+        const length = value.length;
+        const strengthCount = [hasLower, hasUpper, hasDigit, hasSpecial].filter(Boolean).length;
+        setPasswordStrength(strengthCount === 4 && length >= 8 ? 'Strong' : strengthCount >= 2 && length >= 6 ? 'Moderate' : 'Weak');
+        if (!(hasLower && hasUpper && hasDigit && hasSpecial && length >= 8)) {
+          error = 'Password must be 8+ chars, include uppercase, lowercase, number, special char.';
+        }
+        break;
+      }
+      case 'confirmPassword':
+        if (value && value !== employee.password) error = 'Confirm password must match the password.';
+        break;
+      case 'date_of_joining':
+        if (!value) error = 'This field is required.';
+        else if (new Date(value) > new Date()) error = 'Date of joining cannot be in the future.';
+        break;
+      default:
+        if (!value.trim()) error = 'This field is required.';
+    }
+    setErrors((prev) => ({ ...prev, [name]: error }));
+  };
+
+  const isFormValid = () => {
+    for (const [field, value] of Object.entries(employee)) {
+      if (!value || errors[field]) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!isFormValid()) {
+      alert('Please fill all fields correctly.');
+      return;
+    }
+    setAddUserLoading(true);
+    try {
+      const { confirmPassword, ...userWithoutConfirm } = employee;
+      const response = await dispatch(addUser(userWithoutConfirm, token));
+      if (response?.success) {
+        alert('User added successfully!');
+        setEmployee({ email: '', firstname: '', lastname: '', department: '', phnno: '', country: '', state: '', city: '', date_of_joining: '', password: '', confirmPassword: '', role: 'EMPLOYEE' });
+        setErrors({});
+        setPasswordStrength('');
+      }
+    } catch (error) {
+      alert(error.message || 'Failed to add user');
+    } finally {
+      setAddUserLoading(false);
+    }
+  };
+
+  return (
+    <div className="add-employee-wrapper">
+      <div className="add-employee-card">
+        <h3 className="add-employee-title">Add Employee</h3>
+        <form onSubmit={handleSubmit} className="add-employee-form">
+          {Object.entries({
+            email: 'Email',
+            phnno: 'Mobile No',
+            firstname: 'First Name',
+            lastname: 'Last Name',
+            department: 'Department',
+            country: 'Country',
+            state: 'State',
+            city: 'City',
+            date_of_joining: 'Date of Joining',
+            password: 'Password',
+            confirmPassword: 'Confirm Password',
+          }).map(([name, label]) => (
+            <div className="add-employee-field" key={name}>
+              <label>{label}</label>
+              {name === 'department' || name === 'state' ? (
+                <select name={name} value={employee[name]} onChange={handleChange}>
+                  <option value="">Select {label}</option>
+                  {(name === 'department' ? departments : states).map((val) => (
+                    <option key={val} value={val}>{val}</option>
+                  ))}
+                </select>
+              ) : name === 'password' || name === 'confirmPassword' ? (
+                <div className="add-employee-password-field">
+                  <input
+                    type={name === 'password' ? (showPassword ? 'text' : 'password') : (showConfirmPassword ? 'text' : 'password')}
+                    name={name}
+                    value={employee[name]}
+                    onChange={handleChange}
+                  />
+                  <span
+                    onClick={() => name === 'password' ? setShowPassword(!showPassword) : setShowConfirmPassword(!showConfirmPassword)}
+                    className="add-employee-eye"
+                  >
+                    {name === 'password' ? (showPassword ? <EyeOff size={16} /> : <Eye size={16} />) : (showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />)}
+                  </span>
+                </div>
+              ) : (
+                <input
+                  type={name === 'date_of_joining' ? 'date' : 'text'}
+                  name={name}
+                  max={name === 'date_of_joining' ? today : undefined}
+                  value={employee[name]}
+                  onChange={handleChange}
+                />
+              )}
+              {errors[name] && <div className="add-employee-error">{errors[name]}</div>}
+              {name === 'password' && passwordStrength && (
+                <div className={`add-employee-strength ${passwordStrength.toLowerCase()}`}>Strength: {passwordStrength}</div>
+              )}
+            </div>
+          ))}
+          <div className="add-employee-submit">
+            <button type="submit" disabled={addUserLoading || !isFormValid()}>
+              {addUserLoading ? 'Adding...' : 'Add User'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 };
 
-react:-
-app.delete('/api/tasks/:taskId', authenticateToken, async (req, res) => {
-  try {
-    const taskId = req.params.taskId;
-    const userId = req.user.userId;
-
-    if (!taskId || isNaN(taskId)) {
-      return res.status(400).json({ error: "Invalid task ID received." });
-    }
-
-    const headers = {
-      Authorization: req.headers.authorization,
-      "User-Id": userId.toString(),
-      "Content-Type": "application/json",
-    };
-
-    const response = await axios.delete(`http://localhost:8080/api/tasks/${taskId}`, {
-      headers,
-    });
-
-    res.status(response.status).json(response.data);
-  } catch (error) {
-    console.error("Node DELETE Error:", error?.response?.data || error.message);
-    res.status(500).json({ error: error?.response?.data || "Task deletion failed" });
-  }
-});
-
-spring :-
-@DeleteMapping("/{taskId}")
-public ResponseEntity<?> deleteTask(
-        @PathVariable Long taskId,
-        @RequestHeader("User-Id") Long userId) {
-
-    System.out.println("Raw Task ID Received: " + taskId);
-    System.out.println("Raw User ID Received: " + userId);
-
-    taskService.deleteTask(taskId); // <-- Ensure this method is implemented properly
-
-    System.out.println("Task Deleted Successfully: Task ID " + taskId);
-    return ResponseEntity.ok("Task deleted successfully!");
-}
+export default AddEmployee;
