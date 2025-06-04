@@ -1,1 +1,348 @@
-WARN 10452 --- [nio-8080-exec-8] .m.m.a.ExceptionHandlerExceptionResolver : Resolved [org.springframework.http.converter.HttpMessageNotWritableException: Could not write JSON: Document nesting depth (1001) exceeds the maximum allowed (1000, from `StreamWriteConstraints.getMaxNestingDepth()`)]
+any problem in this code const authenticateToken = (req, res, next) => {   const authHeader = req.headers.authorization;   if (!authHeader || !authHeader.startsWith("Bearer ")) {     console.error(" Missing or improperly formatted Authorization header:", authHeader);     return res.status(403).json({ error: "Invalid token format" });   }   const token = authHeader.split(" ")[1];   console.log(" Extracted Token:", token);        console.log("hello")   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {     if (err) {       console.error("Token verification failed:", err.message);       return res.status(403).json({ error: "Invalid token format" });     }     req.user = user;     next();   }); }; ..i am getting the output of it as [nodemon] starting `node server.js` Middleware running on port 3001 Extracted Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IlNhbWJpdEthckBnbWFpbC5jb20iLCJ1c2VySWQiOjI2LCJpYXQiOjE3NDkwMjcxNTQsImV4cCI6MTc0OTA2MzE1NH0.YrLNzDrZN8BX7c9N8sPhqXbHjsdXrCiQxValx1gnIfA hello Extracted Token: null hello Token verification failed: jwt malformed Extracted Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IlNhbWJpdEthckBnbWFpbC5jb20iLCJ1c2VySWQiOjI2LCJpYXQiOjE3NDkwMjcxNTQsImV4cCI6MTc0OTA2MzE1NH0.YrLNzDrZN8BX7c9N8sPhqXbHjsdXrCiQxValx1gnIfA hello when i click on delete button in my frontend
+ 
+export const deleteTask = async (taskId) => {
+  const token = localStorage.getItem("jwtToken");
+  const userId = localStorage.getItem("userId");
+ 
+  console.log(" React Sending DELETE Request with Task ID:", taskId);
+  console.log(" Stored User ID:", userId);
+ 
+  if (!taskId || isNaN(taskId)) {
+    console.error(" Error: Invalid Task ID received in React:", taskId);
+    return;
+  }
+  console.log(token);
+  try {
+    const response = await axios.delete(`http://localhost:3001/api/tasks/${taskId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "User-Id": userId
+      }
+    });
+ 
+    console.log("React DELETE Response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error(" React DELETE Error:", error.response?.data || error.message);
+  }
+};
+ 
+Stored User ID: undefined
+
+Api.js:225 undefined
+
+xhr.js:195 
+
+
+           DELETE http://localhost:3001/api/tasks/46 403 (Forbidden)
+
+dispatchXhrRequest @ xhr.js:195
+
+xhr @ xhr.js:15
+
+dispatchRequest @ dispatchRequest.js:51
+
+_request @ Axios.js:187
+
+request @ Axios.js:40
+
+Axios.<computed> @ Axios.js:213
+
+wrap @ bind.js:5
+
+deleteTask @ Api.js:227
+
+handleDelete @ Dashboard.js:226
+
+onClick @ Dashboard.js:361
+
+executeDispatch @ react-dom-client.development.js:16368
+
+runWithFiberInDEV @ react-dom-client.development.js:1518
+
+processDispatchQueue @ react-dom-client.development.js:16417
+
+(anonymous) @ react-dom-client.development.js:17016
+
+batchedUpdates$1 @ react-dom-client.development.js:3262
+
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:16572
+
+dispatchEvent @ react-dom-client.development.js:20657
+
+dispatchDiscreteEvent @ react-dom-client.development.js:20625
+<button>
+
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:336
+
+(anonymous) @ Dashboard.js:360
+
+Dashboard @ Dashboard.js:342
+
+react-stack-bottom-frame @ react-dom-client.development.js:23863
+
+renderWithHooks @ react-dom-client.development.js:5529
+
+updateFunctionComponent @ react-dom-client.development.js:8897
+
+beginWork @ react-dom-client.development.js:10522
+
+runWithFiberInDEV @ react-dom-client.development.js:1518
+
+performUnitOfWork @ react-dom-client.development.js:15130
+
+workLoopSync @ react-dom-client.development.js:14956
+
+renderRootSync @ react-dom-client.development.js:14936
+
+performWorkOnRoot @ react-dom-client.development.js:14417
+
+performSyncWorkOnRoot @ react-dom-client.development.js:16231
+
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16068
+
+processRootScheduleInMicrotask @ react-dom-client.development.js:16116
+
+(anonymous) @ react-dom-client.development.js:16245
+<Dashboard>
+
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:336
+
+App @ App.js:25
+
+react-stack-bottom-frame @ react-dom-client.development.js:23863
+
+renderWithHooks @ react-dom-client.development.js:5529
+
+updateFunctionComponent @ react-dom-client.development.js:8897
+
+beginWork @ react-dom-client.development.js:10522
+
+runWithFiberInDEV @ react-dom-client.development.js:1518
+
+performUnitOfWork @ react-dom-client.development.js:15130
+
+workLoopSync @ react-dom-client.development.js:14956
+
+renderRootSync @ react-dom-client.development.js:14936
+
+performWorkOnRoot @ react-dom-client.development.js:14417
+
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16216
+
+performWorkUntilDeadline @ scheduler.development.js:45
+<App>
+
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:336
+
+./src/index.js @ index.js:21
+
+options.factory @ react refresh:37
+
+__webpack_require__ @ bootstrap:22
+
+(anonymous) @ startup:7
+
+(anonymous) @ startup:7Understand this error
+
+Api.js:237  React DELETE Error: {error: 'Invalid token format'}
+
+deleteTask @ Api.js:237
+
+await in deleteTask
+
+handleDelete @ Dashboard.js:226
+
+onClick @ Dashboard.js:361
+
+executeDispatch @ react-dom-client.development.js:16368
+
+runWithFiberInDEV @ react-dom-client.development.js:1518
+
+processDispatchQueue @ react-dom-client.development.js:16417
+
+(anonymous) @ react-dom-client.development.js:17016
+
+batchedUpdates$1 @ react-dom-client.development.js:3262
+
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:16572
+
+dispatchEvent @ react-dom-client.development.js:20657
+
+dispatchDiscreteEvent @ react-dom-client.development.js:20625
+<button>
+
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:336
+
+(anonymous) @ Dashboard.js:360
+
+Dashboard @ Dashboard.js:342
+
+react-stack-bottom-frame @ react-dom-client.development.js:23863
+
+renderWithHooks @ react-dom-client.development.js:5529
+
+updateFunctionComponent @ react-dom-client.development.js:8897
+
+beginWork @ react-dom-client.development.js:10522
+
+runWithFiberInDEV @ react-dom-client.development.js:1518
+
+performUnitOfWork @ react-dom-client.development.js:15130
+
+workLoopSync @ react-dom-client.development.js:14956
+
+renderRootSync @ react-dom-client.development.js:14936
+
+performWorkOnRoot @ react-dom-client.development.js:14417
+
+performSyncWorkOnRoot @ react-dom-client.development.js:16231
+
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16068
+
+processRootScheduleInMicrotask @ react-dom-client.development.js:16116
+
+(anonymous) @ react-dom-client.development.js:16245
+<Dashboard>
+
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:336
+
+App @ App.js:25
+
+react-stack-bottom-frame @ react-dom-client.development.js:23863
+
+renderWithHooks @ react-dom-client.development.js:5529
+
+updateFunctionComponent @ react-dom-client.development.js:8897
+
+beginWork @ react-dom-client.development.js:10522
+
+runWithFiberInDEV @ react-dom-client.development.js:1518
+
+performUnitOfWork @ react-dom-client.development.js:15130
+
+workLoopSync @ react-dom-client.development.js:14956
+
+renderRootSync @ react-dom-client.development.js:14936
+
+performWorkOnRoot @ react-dom-client.development.js:14417
+
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16216
+
+performWorkUntilDeadline @ scheduler.development.js:45
+<App>
+
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:336
+
+./src/index.js @ index.js:21
+
+options.factory @ react refresh:37
+
+__webpack_require__ @ bootstrap:22
+
+(anonymous) @ startup:7
+
+(anonymous) @ startup:7Understand this error
+
+Dashboard.js:227  Task 46 deleted successfully, refetching tasks.
+
+Dashboard.js:72  Fetched Updated Tasks from Backend: (4) [{…}, {…}, {…}, {…}]
+
+Dashboard.js:13  Checking Redux state for userId: 26
+
+Dashboard.js:14 Checking Redux state for token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IlNhbWJpdEthckBnbWFpbC5jb20iLCJ1c2VySWQiOjI2LCJpYXQiOjE3NDkwMjcxNTQsImV4cCI6MTc0OTA2MzE1NH0.YrLNzDrZN8BX7c9N8sPhqXbHjsdXrCiQxValx1gnIfA
+
+Dashboard.js:20 Redux User ID: 26
+
+Dashboard.js:21  LocalStorage User ID: 26
+
+Dashboard.js:22 Final User ID: 26
+
+Dashboard.js:39 Redux User ID: 26
+
+Dashboard.js:40  Redux Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IlNhbWJpdEthckBnbWFpbC5jb20iLCJ1c2VySWQiOjI2LCJpYXQiOjE3NDkwMjcxNTQsImV4cCI6MTc0OTA2MzE1NH0.YrLNzDrZN8BX7c9N8sPhqXbHjsdXrCiQxValx1gnIfA
+
+Dashboard.js:41 LocalStorage User ID: 26
+ 
+async function deleteTask(taskId, token, userId) {
+  try {
+    console.log("Sending DELETE Request for Task ID:", taskId);
+    console.log(" User ID Sent:", userId);
+ 
+    await api.delete(`/api/tasks/${taskId}`, {  
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "User-Id": userId  
+      },
+    });
+ 
+    console.log(` Task ${taskId} deleted successfully`);
+  } catch (error) {
+    console.error(" Task deletion error:", error.response?.data || "Task deletion failed");
+    throw error.response?.data || "Task deletion failed";
+  }
+}
+ 
+ 
+export const deleteTask = async (taskId,token,userId) => {
+  // const token = localStorage.getItem("jwtToken");
+  // const userId = localStorage.getItem("userId");
+ 
+  console.log(" React Sending DELETE Request with Task ID:", taskId);
+  console.log(" Stored User ID:", userId);
+ 
+  if (!taskId || isNaN(taskId)) {
+    console.error(" Error: Invalid Task ID received in React:", taskId);
+    return;
+  }
+  console.log(token);
+  try {
+    const response = await axios.delete(`http://localhost:3001/api/tasks/${taskId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "User-Id": userId
+      }
+    });
+ 
+    console.log("React DELETE Response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error(" React DELETE Error:", error.response?.data || error.message);
+  }
+};
+ 
+export const getDeletedTasks = async (userId, token) => {
+  const response = await api.get(`/api/tasks/trash/${userId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return response.data;
+};
+ 
+ 
+export const deleteTask = async (taskId,token,userId) => {
+  // const token = localStorage.getItem("jwtToken");
+  // const userId = localStorage.getItem("userId");
+ 
+  console.log(" React Sending DELETE Request with Task ID:", taskId);
+  console.log(" Stored User ID:", userId);
+ 
+  if (!taskId || isNaN(taskId)) {
+    console.error(" Error: Invalid Task ID received in React:", taskId);
+    return;
+  }
+  console.log(token);
+  try {
+    const response = await axios.delete(`http://localhost:3001/api/tasks/${taskId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "User-Id": userId
+      }
+    });
+ 
+    console.log("React DELETE Response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error(" React DELETE Error:", error.response?.data || error.message);
+  }
+};
+ 
