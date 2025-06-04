@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import '../css/AddEmployee.css';
+import './AddEmployeeCustom.css';
 import { useDispatch, useSelector } from 'react-redux';
 import { getToken } from '../redux/selectors';
 import { addUser } from '../redux/actions/userActions';
@@ -12,8 +12,7 @@ const states = [
   'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
   'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
   'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
-  'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Jammu & Kashmir',
-  'Ladakh', 'Puducherry', 'Chandigarh', 'Andaman and Nicobar Islands', 'Dadra and Nagar Haveli and Daman and Diu', 'Lakshadweep'
+  'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Jammu and Kashmir'
 ];
 
 const AddEmployee = () => {
@@ -21,18 +20,9 @@ const AddEmployee = () => {
   const token = useSelector(getToken);
 
   const [employee, setEmployee] = useState({
-    email: '',
-    firstname: '',
-    lastname: '',
-    department: '',
-    phnno: '',
-    country: '',
-    state: '',
-    city: '',
-    date_of_joining: '',
-    password: '',
-    confirmPassword: '',
-    role: 'EMPLOYEE',
+    email: '', firstname: '', lastname: '', department: '', phnno: '',
+    country: '', state: '', city: '', date_of_joining: '',
+    password: '', confirmPassword: '', role: 'EMPLOYEE'
   });
 
   const [errors, setErrors] = useState({});
@@ -45,7 +35,6 @@ const AddEmployee = () => {
     const { name, value } = e.target;
     setEmployee((prev) => ({ ...prev, [name]: value }));
     validateField(name, value);
-
     if (name === 'password') validateField('confirmPassword', employee.confirmPassword);
     if (name === 'confirmPassword') validateField('confirmPassword', value);
   };
@@ -54,20 +43,14 @@ const AddEmployee = () => {
     let error = '';
     switch (name) {
       case 'email':
-        if (!value.endsWith('@infinite.com') || value.length > 100) {
-          error = 'Email must end with @infinite.com and be less than 100 chars.';
-        }
+        if (!value.endsWith('@infinite.com') || value.length > 100) error = 'Email must end with @infinite.com and be less than 100 chars.';
         break;
       case 'phnno':
-        if (!/^\d{1,12}$/.test(value)) {
-          error = 'Mobile number must be up to 12 digits only.';
-        }
+        if (!/^\d{1,12}$/.test(value)) error = 'Mobile number must be up to 12 digits only.';
         break;
       case 'firstname':
       case 'lastname':
-        if (!/^[a-zA-Z]+$/.test(value)) {
-          error = 'Name must contain only letters.';
-        }
+        if (!/^[a-zA-Z]+$/.test(value)) error = 'Name must contain only letters.';
         break;
       case 'password': {
         const hasLower = /[a-z]/.test(value);
@@ -75,72 +58,41 @@ const AddEmployee = () => {
         const hasDigit = /\d/.test(value);
         const hasSpecial = /[@$!%*?&]/.test(value);
         const length = value.length;
-
         const strengthCount = [hasLower, hasUpper, hasDigit, hasSpecial].filter(Boolean).length;
-
-        if (strengthCount === 4 && length >= 8) {
-          setPasswordStrength('Strong');
-        } else if (strengthCount >= 2 && length >= 6) {
-          setPasswordStrength('Moderate');
-        } else {
-          setPasswordStrength('Weak');
-        }
-
+        setPasswordStrength(strengthCount === 4 && length >= 8 ? 'Strong' : strengthCount >= 2 && length >= 6 ? 'Moderate' : 'Weak');
         if (!(hasLower && hasUpper && hasDigit && hasSpecial && length >= 8)) {
           error = 'Password must be 8+ chars, include uppercase, lowercase, number, special char.';
         }
         break;
       }
       case 'confirmPassword':
-        if (value !== employee.password) {
-          error = 'Confirm password must match the password.';
-        }
+        if (value !== employee.password) error = 'Confirm password must match the password.';
         break;
       default:
-        if (!value.trim()) {
-          error = 'This field is required.';
-        }
+        if (!value.trim()) error = 'This field is required.';
     }
-
     setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
   const isFormValid = () => {
     let valid = true;
     const newErrors = {};
-
     Object.entries(employee).forEach(([field, value]) => {
       validateField(field, value);
       if (errors[field]) valid = false;
     });
-
-    setErrors(newErrors);
     return valid;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isFormValid()) return;
-
     setAddUserLoading(true);
     try {
       const { confirmPassword, ...userWithoutConfirm } = employee;
       await dispatch(addUser(userWithoutConfirm, token));
       alert('User added successfully!');
-      setEmployee({
-        email: '',
-        firstname: '',
-        lastname: '',
-        department: '',
-        phnno: '',
-        country: '',
-        state: '',
-        city: '',
-        date_of_joining: '',
-        password: '',
-        confirmPassword: '',
-        role: 'EMPLOYEE',
-      });
+      setEmployee({ email: '', firstname: '', lastname: '', department: '', phnno: '', country: '', state: '', city: '', date_of_joining: '', password: '', confirmPassword: '', role: 'EMPLOYEE' });
       setErrors({});
       setPasswordStrength('');
     } catch (error) {
@@ -153,95 +105,64 @@ const AddEmployee = () => {
   const today = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="add-employee-container">
+    <div className="add-employee-wrapper">
       <div className="add-employee-card">
-        <h3>Add Employee</h3>
-        <form className="add-employee-form" onSubmit={handleSubmit} noValidate>
-          <div className="row g-3">
-            {[
-              ['Email ID', 'email', 'email'],
-              ['Mobile No', 'phnno', 'text'],
-              ['First Name', 'firstname', 'text'],
-              ['Last Name', 'lastname', 'text'],
-              ['Department', 'department', 'select', departments],
-              ['Country', 'country', 'text'],
-              ['State', 'state', 'select', states],
-              ['City', 'city', 'text'],
-              ['Date of Joining', 'date_of_joining', 'date'],
-              ['Password', 'password', 'password'],
-              ['Confirm Password', 'confirmPassword', 'password']
-            ].map(([label, name, type, options]) => (
-              <div className="col-md-6 position-relative" key={name}>
-                <label className="form-label">{label}</label>
-                {type === 'select' ? (
-                  <select
-                    className="form-select"
-                    name={name}
-                    value={employee[name]}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">Select {label}</option>
-                    {options.map((opt, i) => (
-                      <option key={i} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
+        <h3 className="add-employee-title">Add Employee</h3>
+        <form onSubmit={handleSubmit} className="add-employee-form">
+          {Object.entries({
+            email: 'Email',
+            phnno: 'Mobile No',
+            firstname: 'First Name',
+            lastname: 'Last Name',
+            department: 'Department',
+            country: 'Country',
+            state: 'State',
+            city: 'City',
+            date_of_joining: 'Date of Joining',
+            password: 'Password',
+            confirmPassword: 'Confirm Password',
+          }).map(([name, label]) => (
+            <div className="add-employee-field" key={name}>
+              <label>{label}</label>
+              {name === 'department' || name === 'state' ? (
+                <select name={name} value={employee[name]} onChange={handleChange}>
+                  <option value="">Select {label}</option>
+                  {(name === 'department' ? departments : states).map((val) => (
+                    <option key={val} value={val}>{val}</option>
+                  ))}
+                </select>
+              ) : name === 'password' || name === 'confirmPassword' ? (
+                <div className="add-employee-password-field">
                   <input
-                    type={['password', 'confirmPassword'].includes(name) && (name === 'password' ? showPassword : showConfirmPassword)
-                      ? 'text'
-                      : type}
-                    className="form-control"
+                    type={name === 'password' ? (showPassword ? 'text' : 'password') : (showConfirmPassword ? 'text' : 'password')}
                     name={name}
                     value={employee[name]}
                     onChange={handleChange}
-                    min={name === 'date_of_joining' ? today : undefined}
-                    required
                   />
-                )}
-                {['password', 'confirmPassword'].includes(name) && (
                   <span
-                    className="add-employee-password-toggle"
-                    onClick={() =>
-                      name === 'password'
-                        ? setShowPassword(!showPassword)
-                        : setShowConfirmPassword(!showConfirmPassword)
-                    }
+                    onClick={() => name === 'password' ? setShowPassword(!showPassword) : setShowConfirmPassword(!showConfirmPassword)}
+                    className="add-employee-eye"
                   >
-                    {name === 'password'
-                      ? showPassword
-                        ? <EyeOff size={18} />
-                        : <Eye size={18} />
-                      : showConfirmPassword
-                      ? <EyeOff size={18} />
-                      : <Eye size={18} />}
+                    {name === 'password' ? (showPassword ? <EyeOff size={16} /> : <Eye size={16} />) : (showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />)}
                   </span>
-                )}
-                {name === 'password' && employee.password && (
-                  <div
-                    className="add-employee-password-strength"
-                    style={{
-                      color:
-                        passwordStrength === 'Strong'
-                          ? 'green'
-                          : passwordStrength === 'Moderate'
-                          ? 'orange'
-                          : 'red',
-                    }}
-                  >
-                    Strength: {passwordStrength}
-                  </div>
-                )}
-                {errors[name] && (
-                  <div className="add-employee-error">{errors[name]}</div>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="add-employee-button-container">
-            <button type="submit" className="btn btn-primary" disabled={addUserLoading}>
+                </div>
+              ) : (
+                <input
+                  type={name === 'date_of_joining' ? 'date' : 'text'}
+                  name={name}
+                  min={name === 'date_of_joining' ? today : undefined}
+                  value={employee[name]}
+                  onChange={handleChange}
+                />
+              )}
+              {errors[name] && <div className="add-employee-error">{errors[name]}</div>}
+              {name === 'password' && passwordStrength && (
+                <div className={`add-employee-strength ${passwordStrength.toLowerCase()}`}>Strength: {passwordStrength}</div>
+              )}
+            </div>
+          ))}
+          <div className="add-employee-submit">
+            <button type="submit" disabled={addUserLoading}>
               {addUserLoading ? 'Adding...' : 'Add User'}
             </button>
           </div>
@@ -252,79 +173,86 @@ const AddEmployee = () => {
 };
 
 export default AddEmployee;
-/* AddEmployee.css */
-
 .add-employee-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 40px 20px;
-  min-height: 100vh;
-  background: #f4f7fa;
-}
-
-.add-employee-card {
-  background: #fff;
-  border-radius: 20px;
+  max-width: 800px;
+  margin: 40px auto;
   padding: 30px;
-  max-width: 900px;
-  width: 100%;
-  box-shadow: 0 0 25px rgba(0, 0, 0, 0.1);
+  border-radius: 15px;
+  background-color: #ffffff;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
 }
 
-.add-employee-card h3 {
+.add-employee-title {
   text-align: center;
   margin-bottom: 25px;
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: bold;
   color: #333;
 }
 
-.add-employee-form .form-label {
+.add-employee-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: space-between;
+}
+
+.add-employee-field {
+  width: 48%;
+  display: flex;
+  flex-direction: column;
+}
+
+.add-employee-field-full {
+  width: 100%;
+}
+
+.add-employee-label {
   font-weight: 600;
-  color: #333;
+  margin-bottom: 5px;
+  color: #444;
 }
 
-.add-employee-form input,
-.add-employee-form select {
-  border-radius: 10px;
-  height: 42px;
+.add-employee-input,
+.add-employee-select {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 15px;
 }
 
-.add-employee-form input:focus,
-.add-employee-form select:focus {
-  border-color: #0d6efd;
-  box-shadow: 0 0 5px rgba(13, 110, 253, 0.3);
+.add-employee-input:focus,
+.add-employee-select:focus {
+  outline: none;
+  border-color: #007bff;
 }
 
 .add-employee-error {
   color: red;
-  font-size: 14px;
-  margin-top: 4px;
-}
-
-.add-employee-password-strength {
-  font-weight: 600;
+  font-size: 13px;
   margin-top: 5px;
 }
 
 .add-employee-button-container {
-  display: flex;
-  justify-content: center;
+  width: 100%;
+  text-align: center;
   margin-top: 30px;
 }
 
-.add-employee-form button {
-  width: 160px;
-  padding: 10px;
-  font-weight: 600;
+.add-employee-button {
+  background-color: #007bff;
+  color: white;
+  padding: 12px 30px;
+  border: none;
   border-radius: 10px;
-  box-shadow: 0 3px 10px rgba(0, 123, 255, 0.2);
-  transition: 0.3s;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
 }
 
-.add-employee-form button:hover {
-  transform: translateY(-1px);
+.add-employee-button:hover {
+  background-color: #0056b3;
 }
 
 .add-employee-password-toggle {
@@ -334,19 +262,9 @@ export default AddEmployee;
   cursor: pointer;
 }
 
-@media (max-width: 767px) {
-  .add-employee-card {
-    padding: 20px;
-  }
-
-  .add-employee-form input,
-  .add-employee-form select {
-    font-size: 14px;
-    height: 40px;
-  }
-
-  .add-employee-button-container {
-    margin-top: 20px;
+/* 📱 Responsive: stack fields on small screens */
+@media screen and (max-width: 768px) {
+  .add-employee-field {
+    width: 100%;
   }
 }
-
