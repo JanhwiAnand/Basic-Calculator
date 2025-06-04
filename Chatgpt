@@ -1,13 +1,69 @@
+actions
+import axios from 'axios';
+
+export const fetchUserProfile = (token) => async dispatch => {
+  dispatch({ type: 'FETCH_USER_PROFILE_REQUEST' });
+  try {
+    const response = await axios.get('http://localhost:5000/api/users/profile', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    dispatch({ type: 'FETCH_USER_PROFILE_SUCCESS', payload: response.data });
+  } catch (error) {
+    dispatch({
+      type: 'FETCH_USER_PROFILE_FAILURE',
+      payload: error.response?.data?.message || 'Failed to fetch profile',
+    });
+  }
+};
+reducer 
+const initialState = {
+  users: [],
+  profile: null,
+  loading: false,
+  error: null,
+};
+
+const userReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case 'ADD_USER_REQUEST':
+    case 'UPDATE_USER_PROFILE_REQUEST':
+    case 'FETCH_USER_PROFILE_REQUEST':
+      return { ...state, loading: true, error: null };
+
+    case 'ADD_USER_SUCCESS':
+      return { ...state, users: [...state.users, action.payload], loading: false };
+
+    case 'FETCH_USER_PROFILE_SUCCESS':
+    case 'UPDATE_USER_PROFILE_SUCCESS':
+      return { ...state, profile: action.payload, loading: false };
+
+    case 'ADD_USER_FAILURE':
+    case 'FETCH_USER_PROFILE_FAILURE':
+    case 'UPDATE_USER_PROFILE_FAILURE':
+      return { ...state, error: action.payload, loading: false };
+
+    default:
+      return state;
+  }
+};
+
+export default userReducer;
+
+selector:-
+export const getUserProfile = state => state.user.profile;
+export const getUserLoading = state => state.user.loading;
+export const getUserError = state => state.user.error;
+
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getUser } from '../redux/selectors';
+import { getToken } from '../redux/selectors';
+import { fetchUserProfile, updateUserProfile } from '../redux/actions/userActions';
 import { getUserProfile, getUserLoading, getUserError } from '../redux/selectors';
-import { updateUserProfile } from '../redux/actions/userActions';
 import './Profile.css';
 
 const Profile = () => {
   const dispatch = useDispatch();
-  const loggedInUser = useSelector(getUser);
+  const token = useSelector(getToken);
   const profile = useSelector(getUserProfile);
   const loading = useSelector(getUserLoading);
   const error = useSelector(getUserError);
@@ -26,10 +82,16 @@ const Profile = () => {
   });
 
   useEffect(() => {
-    if (loggedInUser) {
-      setFormData({ ...formData, ...loggedInUser });
+    if (token) {
+      dispatch(fetchUserProfile(token));
     }
-  }, [loggedInUser]);
+  }, [dispatch, token]);
+
+  useEffect(() => {
+    if (profile) {
+      setFormData({ ...formData, ...profile });
+    }
+  }, [profile]);
 
   const handleChange = e => {
     setFormData(prev => ({
@@ -40,55 +102,47 @@ const Profile = () => {
 
   const handleSubmit = e => {
     e.preventDefault();
-    dispatch(updateUserProfile(formData));
+    dispatch(updateUserProfile(formData, token));
   };
 
   return (
     <div className="profile-container">
       <h2 className="profile-title">My Profile</h2>
       {error && <div className="error-msg">{error}</div>}
-      {loading && <div className="loading-msg">Updating...</div>}
+      {loading && <div className="loading-msg">Loading...</div>}
       <form className="profile-form" onSubmit={handleSubmit}>
         <div className="form-row">
           <label>Email</label>
           <input name="email" value={formData.email} onChange={handleChange} disabled />
         </div>
-
         <div className="form-row">
           <label>First Name</label>
           <input name="firstname" value={formData.firstname} onChange={handleChange} />
         </div>
-
         <div className="form-row">
           <label>Last Name</label>
           <input name="lastname" value={formData.lastname} onChange={handleChange} />
         </div>
-
         <div className="form-row">
           <label>City</label>
           <input name="city" value={formData.city} onChange={handleChange} />
         </div>
-
         <div className="form-row">
           <label>State</label>
           <input name="state" value={formData.state} onChange={handleChange} />
         </div>
-
         <div className="form-row">
           <label>Country</label>
           <input name="country" value={formData.country} onChange={handleChange} />
         </div>
-
         <div className="form-row">
           <label>Department</label>
           <input name="department" value={formData.department} onChange={handleChange} />
         </div>
-
         <div className="form-row">
           <label>Phone No</label>
           <input name="phnno" value={formData.phnno} onChange={handleChange} />
         </div>
-
         <div className="form-row">
           <label>Date of Joining</label>
           <input type="date" name="date_of_joining" value={formData.date_of_joining} onChange={handleChange} />
@@ -102,100 +156,3 @@ const Profile = () => {
 
 export default Profile;
 
-
-const initialState = {
-  users: [],
-  profile: null,
-  loading: false,
-  error: null,
-};
-
-const userReducer = (state = initialState, action) => {
-  switch (action.type) {
-    case 'ADD_USER_REQUEST':
-    case 'UPDATE_USER_PROFILE_REQUEST':
-      return { ...state, loading: true, error: null };
-
-    case 'ADD_USER_SUCCESS':
-      return { ...state, users: [...state.users, action.payload], loading: false };
-
-    case 'UPDATE_USER_PROFILE_SUCCESS':
-      return { ...state, profile: action.payload, loading: false };
-
-    case 'ADD_USER_FAILURE':
-    case 'UPDATE_USER_PROFILE_FAILURE':
-      return { ...state, error: action.payload, loading: false };
-
-    default:
-      return state;
-  }
-};
-
-export default userReducer;
-
-
-export const getUserProfile = state => state.user.profile;
-export const getUserLoading = state => state.user.loading;
-export const getUserError = state => state.user.error;
-.profile-container {
-  max-width: 600px;
-  margin: 40px auto;
-  padding: 20px;
-  background: #fdfdfd;
-  border-radius: 12px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.08);
-}
-
-.profile-title {
-  text-align: center;
-  margin-bottom: 20px;
-  color: #333;
-}
-
-.profile-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.form-row {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-row label {
-  margin-bottom: 4px;
-  font-weight: bold;
-  color: #444;
-}
-
-.form-row input {
-  padding: 8px 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-.update-btn {
-  background-color: #4a90e2;
-  color: white;
-  padding: 10px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.update-btn:hover {
-  background-color: #3d7fd6;
-}
-
-.error-msg {
-  color: red;
-  text-align: center;
-}
-
-.loading-msg {
-  color: #555;
-  text-align: center;
-}
