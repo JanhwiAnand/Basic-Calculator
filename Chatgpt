@@ -30,6 +30,7 @@ const AddEmployee = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState('');
+  const [userAdded, setUserAdded] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -85,7 +86,6 @@ const AddEmployee = () => {
 
   const isFormValid = () => {
     let valid = true;
-    const newErrors = {};
     Object.entries(employee).forEach(([field, value]) => {
       validateField(field, value);
       if (!value || errors[field]) valid = false;
@@ -102,11 +102,15 @@ const AddEmployee = () => {
     setAddUserLoading(true);
     try {
       const { confirmPassword, ...userWithoutConfirm } = employee;
-      await dispatch(addUser(userWithoutConfirm, token));
-      alert('User added successfully!');
-      setEmployee({ email: '', firstname: '', lastname: '', department: '', phnno: '', country: '', state: '', city: '', date_of_joining: '', password: '', confirmPassword: '', role: 'EMPLOYEE' });
-      setErrors({});
-      setPasswordStrength('');
+      const response = await dispatch(addUser(userWithoutConfirm, token));
+      if (response?.success) {
+        alert('User added successfully!');
+        setEmployee({ email: '', firstname: '', lastname: '', department: '', phnno: '', country: '', state: '', city: '', date_of_joining: '', password: '', confirmPassword: '', role: 'EMPLOYEE' });
+        setErrors({});
+        setPasswordStrength('');
+      } else {
+        throw new Error('Failed to add user');
+      }
     } catch (error) {
       alert(error.message || 'Failed to add user');
     } finally {
