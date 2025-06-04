@@ -1,48 +1,80 @@
+/* Container centering and responsiveness */
 .container {
-  max-width: 900px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+  min-height: 100vh;
+  background-color: #f6f9fc;
 }
 
+/* Card styling */
 .card {
+  width: 100%;
+  max-width: 900px;
   background: #ffffff;
   border-radius: 20px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  padding: 30px;
 }
 
 h3.text-center {
   font-weight: 600;
   color: #2c3e50;
   font-size: 1.8rem;
+  margin-bottom: 30px;
 }
 
-.form-label {
-  font-weight: 500;
-  color: #2c3e50;
-}
-
+/* Input and select fields */
 .form-control,
 .form-select {
   border-radius: 12px;
   padding: 10px 15px;
-  border: 1px solid #ced4da;
   font-size: 0.95rem;
+  border: 1px solid #ced4da;
   transition: border-color 0.3s ease-in-out;
 }
 
 .form-control:focus,
 .form-select:focus {
   border-color: #007bff;
+  outline: none;
   box-shadow: none;
 }
 
+/* Label styling */
+.form-label {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+/* Error message */
 .text-danger {
   font-size: 0.85rem;
   margin-top: 4px;
   font-weight: 500;
 }
 
+/* Eye icon positioning */
+.position-relative input[type='password'],
+.position-relative input[type='text'] {
+  padding-right: 40px;
+}
+
+.position-relative span {
+  position: absolute;
+  right: 20px;
+  top: 37px;
+  z-index: 10;
+  color: #666;
+  cursor: pointer;
+}
+
+/* Submit button */
 button.btn {
   padding: 10px 30px;
-  border-radius: 50px;
+  border-radius: 30px;
   font-size: 1rem;
   font-weight: 600;
   background-color: #007bff;
@@ -54,25 +86,23 @@ button.btn:hover {
   background-color: #0056b3;
 }
 
-.position-relative input[type='password'],
-.position-relative input[type='text'] {
-  padding-right: 40px;
-}
-
-.position-relative span {
-  position: absolute;
-  right: 15px;
-  top: 38px;
-  z-index: 2;
-  color: #555;
+/* Responsive field layout */
+.row.g-3 > div {
+  padding-right: 10px;
+  padding-left: 10px;
 }
 
 @media (max-width: 768px) {
-  .container {
-    padding: 0 10px;
+  .row.g-3 > div {
+    flex: 0 0 100%;
+    max-width: 100%;
   }
 
-  h3.text-center {
-    font-size: 1.5rem;
+  .card {
+    padding: 20px;
+  }
+
+  .position-relative span {
+    top: 35px;
   }
 }
