@@ -1,62 +1,68 @@
+//node:-
+import axios from 'axios';
+
 export const deleteTask = async (taskId, token, userId) => {
-  const authToken = token || localStorage.getItem("jwtToken");
-  const user = userId || localStorage.getItem("userId");
- 
-  if (!authToken) {
-    console.error("Token is missing, cannot proceed.");
+  const authToken = token || localStorage.getItem('jwtToken');
+  const user = userId || localStorage.getItem('userId');
+
+  if (!authToken || !user) {
+    console.error("Token or User ID is missing, cannot proceed.");
     return;
   }
- 
-  if (!taskId || isNaN(taskId)) {
-    console.error("Invalid Task ID:", taskId);
-    return;
-  }
- 
+
   try {
     const response = await axios.delete(`http://localhost:3001/api/tasks/${taskId}`, {
       headers: {
         Authorization: `Bearer ${authToken}`,
-        "User-Id": user
-      }
+        "User-Id": user,
+      },
     });
- 
+
     console.log("React DELETE Response:", response.data);
     return response.data;
   } catch (error) {
     console.error("React DELETE Error:", error.response?.data || error.message);
   }
 };
- 
+
+react:-
 app.delete('/api/tasks/:taskId', authenticateToken, async (req, res) => {
   try {
-    console.log(" Attempting to DELETE Task ID:", req.params.taskId);
-    console.log(" Token Decoded User ID:", req.user.userId);
- 
-   
-    const taskId = req.params.taskId; // Should be coming from the frontend's API request
+    const taskId = req.params.taskId;
+    const userId = req.user.userId;
+
     if (!taskId || isNaN(taskId)) {
-      console.error(" Error: Invalid task ID received in request!");
       return res.status(400).json({ error: "Invalid task ID received." });
     }
- 
-    console.log(" Correct Task ID Extracted:", taskId);
- 
-    const fixedHeaders = {
+
+    const headers = {
       Authorization: req.headers.authorization,
-      "User-Id": req.user.userId.toString(),
-      "Content-Type": "application/json"
+      "User-Id": userId.toString(),
+      "Content-Type": "application/json",
     };
- 
-    console.log("Sending DELETE Request with Task ID:", taskId);
- 
+
     const response = await axios.delete(`http://localhost:8080/api/tasks/${taskId}`, {
-      headers: fixedHeaders
+      headers,
     });
- 
-    res.json(response.data);
+
+    res.status(response.status).json(response.data);
   } catch (error) {
-    console.error("Error deleting task:", error?.response?.data || error);
-    res.status(400).json({ error: error?.response?.data || "Task deletion failed" });
+    console.error("Node DELETE Error:", error?.response?.data || error.message);
+    res.status(500).json({ error: error?.response?.data || "Task deletion failed" });
   }
 });
- 
+
+spring :-
+@DeleteMapping("/{taskId}")
+public ResponseEntity<?> deleteTask(
+        @PathVariable Long taskId,
+        @RequestHeader("User-Id") Long userId) {
+
+    System.out.println("Raw Task ID Received: " + taskId);
+    System.out.println("Raw User ID Received: " + userId);
+
+    taskService.deleteTask(taskId); // <-- Ensure this method is implemented properly
+
+    System.out.println("Task Deleted Successfully: Task ID " + taskId);
+    return ResponseEntity.ok("Task deleted successfully!");
+}
