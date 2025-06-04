@@ -1,3 +1,98 @@
+.add-employee-container {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 30px;
+  border-radius: 15px;
+  background-color: #ffffff;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+}
+
+.add-employee-title {
+  text-align: center;
+  margin-bottom: 25px;
+  font-size: 28px;
+  font-weight: bold;
+  color: #333;
+}
+
+.add-employee-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: space-between;
+}
+
+.add-employee-field {
+  width: 48%;
+  display: flex;
+  flex-direction: column;
+}
+
+.add-employee-field-full {
+  width: 100%;
+}
+
+.add-employee-label {
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: #444;
+}
+
+.add-employee-input,
+.add-employee-select {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 15px;
+}
+
+.add-employee-input:focus,
+.add-employee-select:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.add-employee-error {
+  color: red;
+  font-size: 13px;
+  margin-top: 5px;
+}
+
+.add-employee-button-container {
+  width: 100%;
+  text-align: center;
+  margin-top: 30px;
+}
+
+.add-employee-button {
+  background-color: #007bff;
+  color: white;
+  padding: 12px 30px;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.add-employee-button:hover {
+  background-color: #0056b3;
+}
+
+.add-employee-password-toggle {
+  position: absolute;
+  right: 15px;
+  top: 38px;
+  cursor: pointer;
+}
+
+/* 📱 Responsive: stack fields on small screens */
+@media screen and (max-width: 768px) {
+  .add-employee-field {
+    width: 100%;
+  }
+}
 import React, { useState } from 'react';
 import './AddEmployeeCustom.css';
 import { useDispatch, useSelector } from 'react-redux';
@@ -173,98 +268,3 @@ const AddEmployee = () => {
 };
 
 export default AddEmployee;
-.add-employee-container {
-  max-width: 800px;
-  margin: 40px auto;
-  padding: 30px;
-  border-radius: 15px;
-  background-color: #ffffff;
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
-}
-
-.add-employee-title {
-  text-align: center;
-  margin-bottom: 25px;
-  font-size: 28px;
-  font-weight: bold;
-  color: #333;
-}
-
-.add-employee-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  justify-content: space-between;
-}
-
-.add-employee-field {
-  width: 48%;
-  display: flex;
-  flex-direction: column;
-}
-
-.add-employee-field-full {
-  width: 100%;
-}
-
-.add-employee-label {
-  font-weight: 600;
-  margin-bottom: 5px;
-  color: #444;
-}
-
-.add-employee-input,
-.add-employee-select {
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  font-size: 15px;
-}
-
-.add-employee-input:focus,
-.add-employee-select:focus {
-  outline: none;
-  border-color: #007bff;
-}
-
-.add-employee-error {
-  color: red;
-  font-size: 13px;
-  margin-top: 5px;
-}
-
-.add-employee-button-container {
-  width: 100%;
-  text-align: center;
-  margin-top: 30px;
-}
-
-.add-employee-button {
-  background-color: #007bff;
-  color: white;
-  padding: 12px 30px;
-  border: none;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.add-employee-button:hover {
-  background-color: #0056b3;
-}
-
-.add-employee-password-toggle {
-  position: absolute;
-  right: 15px;
-  top: 38px;
-  cursor: pointer;
-}
-
-/* 📱 Responsive: stack fields on small screens */
-@media screen and (max-width: 768px) {
-  .add-employee-field {
-    width: 100%;
-  }
-}
