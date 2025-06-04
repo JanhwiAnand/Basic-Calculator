@@ -30,7 +30,6 @@ const AddEmployee = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState('');
-  const [userAdded, setUserAdded] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -76,7 +75,8 @@ const AddEmployee = () => {
         if (value && value !== employee.password) error = 'Confirm password must match the password.';
         break;
       case 'date_of_joining':
-        if (new Date(value) > new Date()) error = 'Date of joining cannot be in the future.';
+        if (!value) error = 'This field is required.';
+        else if (new Date(value) > new Date()) error = 'Date of joining cannot be in the future.';
         break;
       default:
         if (!value.trim()) error = 'This field is required.';
@@ -86,10 +86,12 @@ const AddEmployee = () => {
 
   const isFormValid = () => {
     let valid = true;
-    Object.entries(employee).forEach(([field, value]) => {
-      validateField(field, value);
-      if (!value || errors[field]) valid = false;
-    });
+    for (const [field, value] of Object.entries(employee)) {
+      if (!value || errors[field]) {
+        valid = false;
+        break;
+      }
+    }
     return valid;
   };
 
@@ -108,8 +110,6 @@ const AddEmployee = () => {
         setEmployee({ email: '', firstname: '', lastname: '', department: '', phnno: '', country: '', state: '', city: '', date_of_joining: '', password: '', confirmPassword: '', role: 'EMPLOYEE' });
         setErrors({});
         setPasswordStrength('');
-      } else {
-        throw new Error('Failed to add user');
       }
     } catch (error) {
       alert(error.message || 'Failed to add user');
